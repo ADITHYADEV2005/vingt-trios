@@ -40,8 +40,8 @@ export default function CustomizePage() {
   const [options, setOptions] = useState<Options | null>(null);
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [selected, setSelected] = useState({
-    collar: '', sleeve: '', cuff: '', pocket: '', buttons: '', length: '',
-    measurementId: '', notes: '',
+    collar: '', sleeve: '', cuff: '', pocket: '',
+    buttons: '', length: '', measurementId: '', notes: '',
   });
   const [loading, setLoading] = useState(true);
   const [placing, setPlacing] = useState(false);
@@ -69,6 +69,21 @@ export default function CustomizePage() {
     });
   }, [id]);
 
+  const loadRazorpayScript = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if (document.getElementById('razorpay-script')) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement('script');
+      script.id = 'razorpay-script';
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
   const handleOrder = async () => {
     if (!selected.measurementId) {
       alert('Please add measurements first at /measurements');
@@ -76,15 +91,65 @@ export default function CustomizePage() {
     }
     setPlacing(true);
     try {
-      await api.post('/orders', {
+      // Step 1 — Create the Vingt Trios order
+      const orderRes = await api.post('/orders', {
         garmentId: id,
         measurementId: selected.measurementId,
         totalPrice: garment?.basePrice,
       });
-      router.push('/orders');
+      const order = orderRes.data;
+
+      // Step 2 — Create Razorpay payment order
+      const paymentRes = await api.post(`/payments/create-order/${order.id}`);
+      const payment = paymentRes.data;
+
+      // Step 3 — Load Razorpay script and open popup
+      const loaded = await loadRazorpayScript();
+      if (!loaded) {
+        alert('Failed to load payment gateway. Check your internet connection.');
+        setPlacing(false);
+        return;
+      }
+
+      const options = {
+        key: payment.keyId,
+        amount: payment.amount * 100,
+        currency: payment.currency,
+        name: 'Vingt Trios',
+        description: `Custom ${garment?.name}`,
+        order_id: payment.razorpayOrderId,
+        handler: async (response: {
+          razorpay_order_id: string;
+          razorpay_payment_id: string;
+          razorpay_signature: string;
+        }) => {
+          // Step 4 — Verify payment on backend
+          await api.post('/payments/verify', {
+            razorpayOrderId: response.razorpay_order_id,
+            razorpayPaymentId: response.razorpay_payment_id,
+            razorpaySignature: response.razorpay_signature,
+            orderId: order.id,
+          });
+          router.push('/orders');
+        },
+        prefill: {
+          name: 'Customer',
+          email: '',
+        },
+        theme: {
+          color: '#111827',
+        },
+        modal: {
+          ondismiss: () => {
+            setPlacing(false);
+          },
+        },
+      };
+
+      const razorpay = new (window as any).Razorpay(options);
+      razorpay.open();
     } catch (err: any) {
       alert(err.response?.data?.message || 'Failed to place order');
-    } finally {
       setPlacing(false);
     }
   };
@@ -178,9 +243,11 @@ export default function CustomizePage() {
               disabled={placing || measurements.length === 0}
               className="w-full bg-gray-900 text-white py-4 rounded-xl font-medium hover:bg-gray-700 disabled:opacity-50"
             >
-              {placing ? 'Placing order...' : `Place order — ₹${garment.basePrice}`}
+              {placing ? 'Opening payment...' : `Pay ₹${garment.basePrice}`}
             </button>
-            <p className="text-xs text-gray-400 text-center mt-3">Prepaid only. Production starts after payment.</p>
+            <p className="text-xs text-gray-400 text-center mt-3">
+              Secure payment via Razorpay. Production starts after payment.
+            </p>
           </div>
         </div>
       </div>

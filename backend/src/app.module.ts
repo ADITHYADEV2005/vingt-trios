@@ -8,9 +8,10 @@ import { FabricsModule } from './fabrics/fabrics.module';
 import { GarmentsModule } from './garments/garments.module';
 import { OrdersModule } from './orders/orders.module';
 import { TailorsModule } from './tailors/tailors.module';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
-  imports: [AuthModule, UsersModule, MeasurementsModule, FabricsModule, GarmentsModule, OrdersModule, TailorsModule],
+  imports: [AuthModule, UsersModule, MeasurementsModule, FabricsModule, GarmentsModule, OrdersModule, TailorsModule, PaymentsModule],
   controllers: [AppController],
   providers: [AppService],
 })
