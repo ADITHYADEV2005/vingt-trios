@@ -1,66 +1,96 @@
 'use client';
-
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { useAuthStore } from '@/store/auth.store';
-import { useEffect } from 'react';
-import { ShoppingBag, User, LogOut } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useApp } from '@/context/AppContext';
+import { FiShoppingCart, FiUser, FiSearch, FiLogOut, FiPackage, FiHeart } from 'react-icons/fi';
 
 export default function Navbar() {
-  const { user, logout, loadFromStorage } = useAuthStore();
+  const { user, isLoggedIn, logout, cartCount } = useApp();
+  const [q, setQ] = useState('');
+  const [drop, setDrop] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const router = useRouter();
+  const dropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    loadFromStorage();
+    const s = () => setScrolled(window.scrollY > 10);
+    window.addEventListener('scroll', s, { passive: true });
+    return () => window.removeEventListener('scroll', s);
   }, []);
 
+  useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (dropRef.current && !dropRef.current.contains(e.target as Node)) setDrop(false);
+    };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (q.trim()) router.push(`/categories/shirt?q=${encodeURIComponent(q.trim())}`);
+  };
+
   return (
-    <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
-      <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-        <Link href="/" className="text-2xl font-bold tracking-tight text-gray-900">
-          Vingt Trios
+    <nav className={`nav${scrolled ? ' scrolled' : ''}`}>
+      {/* Logo */}
+      <Link href="/" className="nav-logo">
+        <img
+          src="/image/VINGT TRIOS.png"
+          alt="Vingt Trios"
+          style={{ height: 42, objectFit: 'contain', filter: 'drop-shadow(0 0 6px rgba(236,187,13,.3))' }}
+          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+        />
+        <span className="nav-logo-text">Vingt <span>Trios</span></span>
+      </Link>
+
+      {/* Category links */}
+      <div className="nav-links">
+        <Link href="/categories/shirt" className="nav-link">Shirts</Link>
+        <Link href="/categories/pant" className="nav-link">Pants</Link>
+        <Link href="/categories/blazer" className="nav-link">Blazers</Link>
+      </div>
+
+      {/* Search */}
+      <div className="nav-search">
+        <form onSubmit={handleSearch}>
+          <FiSearch size={14} className="nav-search-icon" />
+          <input
+            type="text"
+            placeholder="Search garments, fabrics…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+        </form>
+      </div>
+
+      {/* Right actions */}
+      <div className="nav-actions">
+        <Link href="/cart" className="nav-icon-btn" aria-label="Cart">
+          <FiShoppingCart size={17} />
+          {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
         </Link>
 
-        <div className="flex items-center gap-6">
-          <Link href="/catalog" className="text-sm text-gray-600 hover:text-gray-900">
-            Catalog
-          </Link>
-
-          {user ? (
+        <div className="nav-dropdown-wrap" ref={dropRef}>
+          {isLoggedIn ? (
             <>
-              <Link href="/orders" className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1">
-                <ShoppingBag size={16} />
-                Orders
-              </Link>
-              <Link href="/profile" className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1">
-                <User size={16} />
-                {user.name.split(' ')[0]}
-              </Link>
-              {user.role === 'ADMIN' && (
-                <Link href="/admin" className="text-sm text-blue-600 hover:text-blue-800 font-medium">
-                  Admin
-                </Link>
-              )}
-              {user.role === 'TAILOR' && (
-                <Link href="/tailor" className="text-sm text-green-600 hover:text-green-800 font-medium">
-                  Dashboard
-                </Link>
-              )}
-              <button
-                onClick={logout}
-                className="text-sm text-gray-500 hover:text-red-600 flex items-center gap-1"
-              >
-                <LogOut size={16} />
-                Logout
+              <button className="nav-account-btn" onClick={() => setDrop(!drop)}>
+                <FiUser size={14} /> {user?.name?.split(' ')[0]}
               </button>
+              {drop && (
+                <div className="nav-dropdown">
+                  <Link href="/profile" className="nav-drop-item" onClick={() => setDrop(false)}><FiUser size={13} /> My Profile</Link>
+                  <Link href="/orders" className="nav-drop-item" onClick={() => setDrop(false)}><FiPackage size={13} /> My Orders</Link>
+                  <Link href="/profile#measurements" className="nav-drop-item" onClick={() => setDrop(false)}><FiHeart size={13} /> Saved Measurements</Link>
+                  <button className="nav-drop-item red" onClick={() => { logout(); setDrop(false); router.push('/'); }}>
+                    <FiLogOut size={13} /> Log Out
+                  </button>
+                </div>
+              )}
             </>
           ) : (
-            <>
-              <Link href="/login" className="text-sm text-gray-600 hover:text-gray-900">
-                Login
-              </Link>
-              <Link href="/register" className="text-sm bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-gray-700">
-                Get Started
-              </Link>
-            </>
+            <Link href="/login" className="nav-account-btn"><FiUser size={14} /> Sign In</Link>
           )}
         </div>
       </div>
