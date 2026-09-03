@@ -1,106 +1,103 @@
 'use client';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useApp } from '@/context/AppContext';
+import { getCustomerOrders } from '@/lib/api';
+import { FiPackage, FiArrowRight, FiCalendar, FiShoppingCart } from 'react-icons/fi';
 
-import { useEffect, useState } from 'react';
-import api from '@/lib/api';
-import { Package } from 'lucide-react';
-
-interface Order {
-  id: string;
-  totalPrice: number;
-  status: string;
-  createdAt: string;
-  garment: { name: string; collar: string; sleeve: string; fabric: { name: string } };
-  measurement: { label: string };
-}
-
-const STATUS_STEPS = [
-  'PAYMENT_PENDING',
-  'PAYMENT_CONFIRMED',
-  'CUTTING',
-  'STITCHING',
-  'QUALITY_CHECK',
-  'DISPATCHED',
-  'DELIVERED',
-];
-
-const STATUS_LABELS: Record<string, string> = {
-  PAYMENT_PENDING: 'Payment Pending',
-  PAYMENT_CONFIRMED: 'Payment Confirmed',
-  CUTTING: 'Cutting Fabric',
-  STITCHING: 'Stitching',
-  QUALITY_CHECK: 'Quality Check',
-  DISPATCHED: 'Dispatched',
-  DELIVERED: 'Delivered',
+const STATUS_CLASS: Record<string, string> = {
+  PAID: 's-paid', ASSIGNED: 's-assigned', PRODUCTION: 's-production',
+  QC: 's-qc', SHIPPED: 's-shipped', DELIVERED: 's-delivered',
 };
 
 export default function OrdersPage() {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const { isLoggedIn } = useApp();
+  const router = useRouter();
+  const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/orders/my').then((res) => {
-      setOrders(res.data);
-      setLoading(false);
-    });
-  }, []);
+    if (!isLoggedIn) { router.push('/login'); return; }
+    getCustomerOrders()
+      .then(setOrders)
+      .catch(() => setOrders([]))
+      .finally(() => setLoading(false));
+  }, [isLoggedIn]);
+
+  if (!isLoggedIn) return null;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-12">
-      <h1 className="text-3xl font-bold text-gray-900 mb-2">My Orders</h1>
-      <p className="text-gray-500 mb-8">Track your custom garments from production to delivery</p>
+    <div style={{ padding: '40px', maxWidth: '900px', margin: '0 auto' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32 }}>
+        <FiPackage size={22} style={{ color: 'var(--gold)' }} />
+        <h1 style={{ fontFamily: "'Playfair Display',serif", fontSize: '2rem', color: 'var(--text)' }}>
+          My Orders
+        </h1>
+      </div>
 
       {loading ? (
-        <p className="text-gray-500">Loading...</p>
+        <div>
+          {[1, 2, 3].map(i => (
+            <div key={i} className="skeleton" style={{ height: 110, borderRadius: 'var(--r-md)', marginBottom: 14 }} />
+          ))}
+        </div>
       ) : orders.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-2xl border border-gray-200">
-          <Package size={40} className="mx-auto text-gray-300 mb-4" />
-          <p className="text-gray-500">No orders yet.</p>
-          <a href="/catalog" className="text-gray-900 font-medium underline text-sm mt-2 inline-block">Browse catalog</a>
+        <div className="empty" style={{ padding: '80px 20px' }}>
+          <div className="empty-icon"><FiShoppingCart size={52} /></div>
+          <h2 className="empty-title">No orders yet</h2>
+          <p className="empty-desc">You haven't placed any custom or ready-made garment orders yet.</p>
+          <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Link href="/categories/shirt" className="btn btn-primary">Browse Shirts <FiArrowRight /></Link>
+            <Link href="/customize/shirt"  className="btn btn-outline">Customize <FiArrowRight /></Link>
+          </div>
         </div>
       ) : (
-        <div className="space-y-6">
-          {orders.map((order) => {
-            const stepIndex = STATUS_STEPS.indexOf(order.status);
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {orders.map((order: any) => {
+            const date = new Date(order.createdAt).toLocaleDateString('en-IN', {
+              year: 'numeric', month: 'long', day: 'numeric',
+            });
             return (
-              <div key={order.id} className="bg-white border border-gray-200 rounded-2xl p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{order.garment.name}</h3>
-                    <p className="text-sm text-gray-500">{order.garment.fabric.name} · {order.measurement.label}</p>
-                    <p className="text-sm text-gray-400 mt-1">Order #{order.id.slice(-8).toUpperCase()}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-gray-900">₹{order.totalPrice}</p>
-                    <span className={`text-xs px-2 py-1 rounded-full mt-1 inline-block ${
-                      order.status === 'DELIVERED' ? 'bg-green-50 text-green-700' :
-                      order.status === 'PAYMENT_PENDING' ? 'bg-yellow-50 text-yellow-700' :
-                      'bg-blue-50 text-blue-700'
-                    }`}>
-                      {STATUS_LABELS[order.status]}
+              <div key={order.id} className="dash-order-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 18 }}>
+                <div>
+                  {/* ID + status */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                    <span style={{ fontWeight: 700, color: 'var(--text)', fontSize: '.92rem' }}>
+                      #{order.id.slice(0, 8).toUpperCase()}
                     </span>
+                    <span className={`status-badge ${STATUS_CLASS[order.status] || ''}`}>
+                      {order.status}
+                    </span>
+                  </div>
+
+                  {/* Date + item count */}
+                  <div style={{ display: 'flex', gap: 16, fontSize: '.8rem', color: 'var(--text-3)', marginBottom: 10 }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <FiCalendar size={11} /> {date}
+                    </span>
+                    <span>{order.items?.length || 0} item{order.items?.length !== 1 ? 's' : ''}</span>
+                  </div>
+
+                  {/* Item chips */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                    {order.items?.map((item: any) => (
+                      <span key={item.id} style={{ fontSize: '.74rem', padding: '3px 10px', background: 'var(--bg-el)', border: '1px solid var(--border)', borderRadius: 50, color: 'var(--text-2)' }}>
+                        {item.name}{item.isCustom ? ' (Custom)' : ''}
+                      </span>
+                    ))}
                   </div>
                 </div>
 
-                {/* Progress bar */}
-                <div className="mt-4">
-                  <div className="flex justify-between mb-2">
-                    {STATUS_STEPS.map((step, i) => (
-                      <div key={step} className="flex flex-col items-center flex-1">
-                        <div className={`w-3 h-3 rounded-full mb-1 ${
-                          i <= stepIndex ? 'bg-gray-900' : 'bg-gray-200'
-                        }`} />
-                        <p className="text-xs text-gray-400 text-center hidden md:block">
-                          {STATUS_LABELS[step].split(' ')[0]}
-                        </p>
-                      </div>
-                    ))}
+                {/* Price + Track button */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
+                  <div style={{ fontFamily: "'Playfair Display',serif", fontSize: '1.4rem', fontWeight: 700, color: 'var(--gold)' }}>
+                    ₹{Number(order.totalPrice).toLocaleString('en-IN')}
                   </div>
-                  <div className="relative h-1 bg-gray-200 rounded-full mt-1">
-                    <div
-                      className="absolute h-1 bg-gray-900 rounded-full transition-all"
-                      style={{ width: `${(stepIndex / (STATUS_STEPS.length - 1)) * 100}%` }}
-                    />
-                  </div>
+                  <Link href={`/orders/${order.id}`} className="btn btn-gold-outline btn-sm">
+                    Track Order <FiArrowRight size={12} />
+                  </Link>
                 </div>
               </div>
             );
