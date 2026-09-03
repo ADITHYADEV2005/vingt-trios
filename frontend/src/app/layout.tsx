@@ -1,30 +1,30 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
 import './globals.css';
-import Providers from '@/components/Providers';
+import { AppProvider } from '@/context/AppContext';
 import Navbar from '@/components/Navbar';
-
-const inter = Inter({ subsets: ['latin'] });
+import Footer from '@/components/Footer';
 
 export const metadata: Metadata = {
-  title: 'Vingt Trios — Custom Clothing',
-  description: 'Made to measure clothing, designed by you.',
+  title: 'Vingt Trios — AI-Powered Custom Formalwear',
+  description: 'Premium custom shirts, pants & blazers. AI body scan, expert tailors, Razorpay-secured checkout.',
+  keywords: 'custom shirts, bespoke suits, tailored pants, blazers, made to measure India',
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
-        <Providers>
+      <head>
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body>
+        <AppProvider>
           <Navbar />
-          <main className="min-h-screen bg-gray-50">
-            {children}
-          </main>
-        </Providers>
+          <div className="page">{children}</div>
+          <Footer />
+        </AppProvider>
       </body>
     </html>
   );
