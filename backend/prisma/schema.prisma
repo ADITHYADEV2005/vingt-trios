@@ -3,116 +3,421 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
-  password  String?
-  role      Role     @default(CUSTOMER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  profile   Profile?
-  orders    Order[]
-}
-
-enum Role {
-  CUSTOMER
-  TAILOR
-  ADMIN
-}
-
-model Profile {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  phone     String?
-  address   String?
-  city      String?
-  state     String?
-  pincode   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user         User          @relation(fields: [userId], references: [id])
-  measurements Measurement[]
+  id              String             @id @default(uuid())
+  email           String             @unique
+  password        String
+  name            String
+  role            String             @default("CUSTOMER")
+  adminRole       String?
+  suspended       Boolean            @default(false)
+  banned          Boolean            @default(false)
+  otpSecret       String?
+  otpExpiry       DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  auditLogs       AuditLog[]
+  designComments  DesignComment[]
+  following       DesignerFollower[]
+  designerProfile DesignerProfile?
+  measurements    Measurement[]
+  notifications   Notification[]
+  designOrders    Order[]            @relation("DesignerOrders")
+  tailorOrders    Order[]            @relation("TailorOrders")
+  orders          Order[]            @relation("CustomerOrders")
+  chats           OrderChat[]
+  payouts         PayoutRecord[]
+  designs         SavedDesign[]
+  assignedTickets SupportTicket[]    @relation("StaffTickets")
+  tickets         SupportTicket[]    @relation("CustomerTickets")
+  tailorProfile   TailorProfile?
 }
 
 model Measurement {
-  id        String   @id @default(cuid())
-  profileId String
-  label     String
-  chest     Float
-  waist     Float
-  hips      Float
-  shoulder  Float
-  sleeveLen Float
-  neck      Float
-  createdAt DateTime @default(now())
+  id            String   @id @default(uuid())
+  userId        String
+  label         String   @default("My Measurements")
+  chest         Float?
+  waist         Float?
+  shoulder      Float?
+  sleeve        Float?
+  inseam        Float?
+  neck          Float?
+  hip           Float?
+  fitPreference String   @default("Slim Fit")
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
 
-  profile Profile @relation(fields: [profileId], references: [id])
-  orders  Order[]
+model SavedDesign {
+  id         String   @id @default(uuid())
+  userId     String
+  name       String
+  category   String
+  selections String
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model TailorProfile {
+  id                  String                 @id @default(uuid())
+  userId              String                 @unique
+  name                String
+  shopName            String                 @default("")
+  experienceYears     Int                    @default(5)
+  rating              Float                  @default(5.0)
+  charge              Float                  @default(1500.0)
+  commissionRate      Float                  @default(80.0)
+  turnaroundDays      Int                    @default(7)
+  bio                 String                 @default("")
+  portfolioImages     String                 @default("")
+  specializations     String                 @default("")
+  location            String                 @default("")
+  bankAccount         String                 @default("{}")
+  isAvailable         Boolean                @default(true)
+  maxConcurrentOrders Int                    @default(10)
+  applicationStatus   String                 @default("PENDING")
+  documents           String                 @default("")
+  activeOrderCount    Int                    @default(0)
+  totalOrders         Int                    @default(0)
+  defectRate          Float                  @default(0.0)
+  avgTurnaround       Float                  @default(7.0)
+  createdAt           DateTime               @default(now())
+  measurementFlags    MeasurementFlag[]
+  payouts             PayoutRecord[]
+  user                User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewResponses     TailorReviewResponse[]
+}
+
+model DesignerProfile {
+  id                String              @id @default(uuid())
+  userId            String              @unique
+  name              String
+  brandName         String              @default("")
+  specialization    String              @default("Formalwear & Embroidery")
+  portfolioImages   String              @default("")
+  applicationStatus String              @default("PENDING")
+  royaltyRate       Float               @default(10.0)
+  bio               String              @default("")
+  socialLinks       String              @default("{}")
+  bankAccount       String              @default("{}")
+  followersCount    Int                 @default(0)
+  isAvailable       Boolean             @default(true)
+  totalDesigns      Int                 @default(0)
+  totalEarnings     Float               @default(0.0)
+  createdAt         DateTime            @default(now())
+  catalogItems      DesignCatalogItem[]
+  followers         DesignerFollower[]
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model DesignCatalogItem {
+  id                String                 @id @default(uuid())
+  designerProfileId String
+  title             String
+  description       String                 @default("")
+  tags              String                 @default("")
+  category          String
+  compatibleFabrics String                 @default("")
+  mockupImageUrl    String
+  sketchUrl         String?
+  version           Int                    @default(1)
+  status            String                 @default("DRAFT")
+  adminFeedback     String                 @default("")
+  licensingTier     String                 @default("OPEN_USE")
+  viewsCount        Int                    @default(0)
+  favoritesCount    Int                    @default(0)
+  ordersGenerated   Int                    @default(0)
+  revenueGenerated  Float                  @default(0.0)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  designerProfile   DesignerProfile        @relation(fields: [designerProfileId], references: [id], onDelete: Cascade)
+  comments          DesignComment[]
+  versions          DesignVersionHistory[]
+}
+
+model DesignVersionHistory {
+  id             String            @id @default(uuid())
+  designId       String
+  version        Int
+  mockupImageUrl String
+  changelogNote  String            @default("")
+  createdAt      DateTime          @default(now())
+  design         DesignCatalogItem @relation(fields: [designId], references: [id], onDelete: Cascade)
+}
+
+model DesignComment {
+  id         String            @id @default(uuid())
+  designId   String
+  senderId   String
+  senderRole String
+  comment    String
+  createdAt  DateTime          @default(now())
+  sender     User              @relation(fields: [senderId], references: [id])
+  design     DesignCatalogItem @relation(fields: [designId], references: [id], onDelete: Cascade)
+}
+
+model DesignerFollower {
+  id                String          @id @default(uuid())
+  designerProfileId String
+  userId            String
+  createdAt         DateTime        @default(now())
+  user              User            @relation(fields: [userId], references: [id])
+  designerProfile   DesignerProfile @relation(fields: [designerProfileId], references: [id], onDelete: Cascade)
 }
 
 model Fabric {
-  id          String   @id @default(cuid())
-  name        String
-  material    String
-  color       String
-  pricePerMtr Float
-  stock       Float
-  isDeadstock Boolean  @default(false)
-  origin      String?
-  imageUrl    String?
-  createdAt   DateTime @default(now())
-
-  garments Garment[]
+  id           String   @id @default(uuid())
+  name         String
+  description  String   @default("")
+  category     String
+  priceDelta   Float    @default(0.0)
+  pricePerUnit Float    @default(0.0)
+  colors       String   @default("")
+  swatchUrl    String?
+  images       String   @default("")
+  inStock      Boolean  @default(true)
+  stockLevel   Int      @default(100)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
-model Garment {
-  id         String   @id @default(cuid())
-  name       String
-  basePrice  Float
-  collar     String
-  sleeve     String
-  cuff       String
-  pocket     String
-  buttons    String
-  length     String
-  embroidery String?
-  notes      String?
-  fabricId   String
-  createdAt  DateTime @default(now())
+model StyleOption {
+  id          String   @id @default(uuid())
+  name        String
+  type        String
+  category    String
+  priceDelta  Float    @default(0.0)
+  imageUrl    String?
+  description String   @default("")
+  inStock     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
 
-  fabric Fabric  @relation(fields: [fabricId], references: [id])
-  orders Order[]
+model PricingRule {
+  id            String   @id @default(uuid())
+  name          String
+  category      String
+  basePrice     Float
+  modifiers     String   @default("{}")
+  bulkDiscounts String   @default("[]")
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model PreDesignedGarment {
+  id          String  @id @default(uuid())
+  name        String
+  description String
+  category    String
+  basePrice   Float
+  imageUrl    String
+  fabricName  String
+  color       String
+  fit         String
+  inStock     Boolean @default(true)
 }
 
 model Order {
-  id            String      @id @default(cuid())
-  userId        String
-  garmentId     String
-  measurementId String
-  totalPrice    Float
-  status        OrderStatus @default(PAYMENT_PENDING)
-  tailorId      String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-
-  user        User        @relation(fields: [userId], references: [id])
-  garment     Garment     @relation(fields: [garmentId], references: [id])
-  measurement Measurement @relation(fields: [measurementId], references: [id])
+  id               String                @id @default(uuid())
+  customerId       String
+  tailorId         String?
+  designerId       String?
+  status           String                @default("PAID")
+  acceptedByTailor Boolean               @default(false)
+  rejectReason     String?
+  totalPrice       Float
+  paymentId        String?
+  region           String                @default("")
+  trackingNumber   String?
+  courierName      String?
+  deadline         DateTime?
+  cancelledAt      DateTime?
+  cancelReason     String?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  proposals        DesignProposal[]
+  measurementFlags MeasurementFlag[]
+  designer         User?                 @relation("DesignerOrders", fields: [designerId], references: [id])
+  tailor           User?                 @relation("TailorOrders", fields: [tailorId], references: [id])
+  customer         User                  @relation("CustomerOrders", fields: [customerId], references: [id])
+  chats            OrderChat[]
+  items            OrderItem[]
+  progressPhotos   OrderProgressPhoto[]
+  timeline         OrderTimeline[]
+  tickets          SupportTicket[]
+  reviews          TailorReviewResponse?
 }
 
-enum OrderStatus {
-  PAYMENT_PENDING
-  PAYMENT_CONFIRMED
-  CUTTING
-  STITCHING
-  QUALITY_CHECK
-  DISPATCHED
-  DELIVERED
+model OrderItem {
+  id            String  @id @default(uuid())
+  orderId       String
+  name          String
+  category      String
+  price         Float
+  quantity      Int     @default(1)
+  isCustom      Boolean @default(false)
+  preDesignedId String?
+  customSpec    String?
+  order         Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model OrderTimeline {
+  id        String   @id @default(uuid())
+  orderId   String
+  status    String
+  note      String   @default("")
+  actorId   String?
+  actorName String   @default("System")
+  createdAt DateTime @default(now())
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model OrderProgressPhoto {
+  id        String   @id @default(uuid())
+  orderId   String
+  stage     String
+  imageUrl  String
+  note      String   @default("")
+  createdAt DateTime @default(now())
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model MeasurementFlag {
+  id               String        @id @default(uuid())
+  orderId          String
+  tailorProfileId  String
+  issueDescription String
+  adminNotes       String        @default("")
+  status           String        @default("PENDING")
+  createdAt        DateTime      @default(now())
+  tailorProfile    TailorProfile @relation(fields: [tailorProfileId], references: [id])
+  order            Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model OrderChat {
+  id            String   @id @default(uuid())
+  orderId       String
+  senderId      String
+  senderRole    String
+  message       String
+  attachmentUrl String?
+  createdAt     DateTime @default(now())
+  sender        User     @relation(fields: [senderId], references: [id])
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model TailorReviewResponse {
+  id              String        @id @default(uuid())
+  orderId         String        @unique
+  tailorProfileId String
+  rating          Float         @default(5.0)
+  comment         String        @default("")
+  reply           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  tailorProfile   TailorProfile @relation(fields: [tailorProfileId], references: [id])
+  order           Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model DesignProposal {
+  id             String   @id @default(uuid())
+  orderId        String
+  designerId     String
+  designerName   String
+  mockupImageUrl String
+  description    String
+  status         String   @default("PENDING")
+  createdAt      DateTime @default(now())
+  order          Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model SupportTicket {
+  id            String   @id @default(uuid())
+  customerId    String
+  assigneeId    String?
+  orderId       String?
+  subject       String
+  description   String
+  status        String   @default("OPEN")
+  priority      String   @default("NORMAL")
+  internalNotes String   @default("")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  order         Order?   @relation(fields: [orderId], references: [id])
+  assignee      User?    @relation("StaffTickets", fields: [assigneeId], references: [id])
+  customer      User     @relation("CustomerTickets", fields: [customerId], references: [id])
+}
+
+model CannedResponse {
+  id       String @id @default(uuid())
+  title    String
+  body     String
+  category String @default("GENERAL")
+}
+
+model Banner {
+  id          String    @id @default(uuid())
+  title       String
+  imageUrl    String?
+  videoUrl    String?
+  linkUrl     String?
+  isActive    Boolean   @default(false)
+  scheduledAt DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+model Coupon {
+  id           String    @id @default(uuid())
+  code         String    @unique
+  discountType String    @default("PERCENT")
+  amount       Float
+  usageLimit   Int       @default(100)
+  usedCount    Int       @default(0)
+  expiresAt    DateTime?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+}
+
+model PayoutRecord {
+  id                 String         @id @default(uuid())
+  tailorId           String
+  tailorProfileId    String?
+  amount             Float
+  razorpayTransferId String?
+  status             String         @default("PENDING")
+  notes              String         @default("")
+  createdAt          DateTime       @default(now())
+  tailorProfile      TailorProfile? @relation(fields: [tailorProfileId], references: [id])
+  tailor             User           @relation(fields: [tailorId], references: [id])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  actorId   String?
+  actorName String   @default("System")
+  action    String
+  target    String
+  payload   String   @default("{}")
+  ip        String   @default("")
+  createdAt DateTime @default(now())
+  actor     User?    @relation(fields: [actorId], references: [id])
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  recipientId String?
+  type        String
+  title       String
+  message     String
+  read        Boolean  @default(false)
+  link        String   @default("")
+  createdAt   DateTime @default(now())
+  recipient   User?    @relation(fields: [recipientId], references: [id])
 }
