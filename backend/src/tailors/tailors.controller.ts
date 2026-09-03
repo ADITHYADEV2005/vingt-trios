@@ -1,98 +1,84 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Body,
-  Param,
-  Headers,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, Req, ForbiddenException } from '@nestjs/common';
 import { TailorsService } from './tailors.service';
-import { JwtService } from '@nestjs/jwt';
+import { AuditService } from '../audit/audit.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Role } from '../common/types';
 
-@Controller('tailors')
+@UseGuards(JwtAuthGuard)
+@Controller('tailors-admin')
 export class TailorsController {
-  constructor(
-    private tailorsService: TailorsService,
-    private jwtService: JwtService,
-  ) {}
+  constructor(private tailorsService: TailorsService, private auditService: AuditService) {}
 
-  private getPayload(auth: string) {
-    if (!auth || !auth.startsWith('Bearer ')) {
-      throw new UnauthorizedException('No token provided');
-    }
-    const token = auth.split(' ')[1];
-    return this.jwtService.verify(token);
+  private ea(req: any) { if (req.user.role !== Role.ADMIN) throw new ForbiddenException('Admin only'); }
+
+  @Get('queue')
+  async getQueue(@Req() req: any, @Query('status') status?: string, @Query('skip') skip?: string, @Query('take') take?: string) {
+    this.ea(req);
+    return this.tailorsService.getApplicationQueue({ status: status || 'PENDING', skip: skip ? +skip : 0, take: take ? +take : 50 });
   }
 
-  // Admin gets all tailors
   @Get()
-  getAllTailors(@Headers('authorization') auth: string) {
-    const payload = this.getPayload(auth);
-    if (payload.role !== 'ADMIN') {
-      throw new UnauthorizedException('Only admins can view all tailors');
-    }
-    return this.tailorsService.getAllTailors();
+  async getAll(@Req() req: any, @Query('search') search?: string, @Query('skip') skip?: string, @Query('take') take?: string) {
+    this.ea(req);
+    return this.tailorsService.getAllTailors({ search, skip: skip ? +skip : 0, take: take ? +take : 50 });
   }
 
-  // Admin registers a new tailor
-  @Post('register')
-  registerTailor(
-    @Headers('authorization') auth: string,
-    @Body() body: { name: string; email: string },
-  ) {
-    const payload = this.getPayload(auth);
-    if (payload.role !== 'ADMIN') {
-      throw new UnauthorizedException('Only admins can register tailors');
-    }
-    return this.tailorsService.registerTailor(body.name, body.email);
+  @Get(':id')
+  async getProfile(@Req() req: any, @Param('id') id: string) {
+    this.ea(req);
+    return this.tailorsService.getTailorProfile(id);
   }
 
-  // Tailor gets their own orders
-  @Get('my-orders')
-  getMyOrders(@Headers('authorization') auth: string) {
-    const payload = this.getPayload(auth);
-    if (payload.role !== 'TAILOR') {
-      throw new UnauthorizedException('Only tailors can access this');
-    }
-    return this.tailorsService.getMyOrders(payload.sub);
+  @Post(':id/approve')
+  async approve(@Req() req: any, @Param('id') id: string, @Body() body: { approved: boolean; reason?: string }) {
+    this.ea(req);
+    const result = await this.tailorsService.approveApplication(id, body.approved, body.reason);
+    await this.auditService.log({
+      actorId: req.user.id, actorName: req.user.name,
+      action: body.approved ? 'TAILOR_APPROVED' : 'TAILOR_REJECTED',
+      target: `TailorProfile:${id}`, payload: { reason: body.reason },
+    });
+    return result;
   }
 
-  // Tailor gets their stats
-  @Get('my-stats')
-  getMyStats(@Headers('authorization') auth: string) {
-    const payload = this.getPayload(auth);
-    if (payload.role !== 'TAILOR') {
-      throw new UnauthorizedException('Only tailors can access this');
-    }
-    return this.tailorsService.getTailorStats(payload.sub);
+  @Patch(':id/commission')
+  async updateCommission(@Req() req: any, @Param('id') id: string, @Body() body: { rate: number }) {
+    this.ea(req);
+    const result = await this.tailorsService.updateCommissionRate(id, body.rate);
+    await this.auditService.log({
+      actorId: req.user.id, actorName: req.user.name,
+      action: 'TAILOR_COMMISSION_UPDATED', target: `TailorProfile:${id}`, payload: { rate: body.rate },
+    });
+    return result;
   }
 
-  // Tailor gets one specific order
-  @Get('my-orders/:id')
-  getOrderById(
-    @Headers('authorization') auth: string,
-    @Param('id') id: string,
-  ) {
-    const payload = this.getPayload(auth);
-    if (payload.role !== 'TAILOR') {
-      throw new UnauthorizedException('Only tailors can access this');
-    }
-    return this.tailorsService.getOrderById(payload.sub, id);
+  @Patch(':id/suspend')
+  async suspend(@Req() req: any, @Param('id') id: string, @Body() body: { suspended: boolean }) {
+    this.ea(req);
+    const result = await this.tailorsService.suspendTailor(id, body.suspended);
+    await this.auditService.log({
+      actorId: req.user.id, actorName: req.user.name,
+      action: body.suspended ? 'TAILOR_SUSPENDED' : 'TAILOR_UNSUSPENDED',
+      target: `TailorProfile:${id}`,
+    });
+    return result;
   }
 
-  // Tailor updates production status
-  @Patch('my-orders/:id/status')
-  updateStatus(
-    @Headers('authorization') auth: string,
-    @Param('id') id: string,
-    @Body() body: { status: string },
-  ) {
-    const payload = this.getPayload(auth);
-    if (payload.role !== 'TAILOR') {
-      throw new UnauthorizedException('Only tailors can update status');
-    }
-    return this.tailorsService.updateStatus(payload.sub, id, body.status);
+  @Post(':id/payout')
+  async payout(@Req() req: any, @Param('id') id: string, @Body() body: { amount: number; notes?: string }) {
+    this.ea(req);
+    const result = await this.tailorsService.triggerPayout(id, body.amount, body.notes);
+    await this.auditService.log({
+      actorId: req.user.id, actorName: req.user.name,
+      action: 'TAILOR_PAYOUT_TRIGGERED', target: `TailorProfile:${id}`,
+      payload: { amount: body.amount, transferId: result.razorpayTransferId },
+    });
+    return result;
+  }
+
+  @Get(':id/payouts')
+  async getPayouts(@Req() req: any, @Param('id') id: string) {
+    this.ea(req);
+    return this.tailorsService.getPayoutLedger(id);
   }
 }

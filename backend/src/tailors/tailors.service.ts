@@ -1,125 +1,148 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import Razorpay = require('razorpay');
 
 @Injectable()
 export class TailorsService {
-  constructor(private prisma: PrismaService) {}
+  private razorpay: any;
+  private isMockMode = true;
 
-  // Get all orders assigned to this tailor
-  async getMyOrders(tailorId: string) {
-    return this.prisma.order.findMany({
-      where: { tailorId },
+  constructor(private prisma: PrismaService) {
+    const keyId = process.env.RAZORPAY_KEY_ID || '';
+    const keySecret = process.env.RAZORPAY_KEY_SECRET || '';
+    if (keyId && keySecret && !keyId.includes('mock')) {
+      try {
+        this.razorpay = new Razorpay({ key_id: keyId, key_secret: keySecret });
+        this.isMockMode = false;
+      } catch {}
+    }
+  }
+
+  async getApplicationQueue(params: { skip?: number; take?: number; status?: string }) {
+    const { skip = 0, take = 50, status = 'PENDING' } = params;
+    const [tailors, total] = await Promise.all([
+      this.prisma.tailorProfile.findMany({
+        where: { applicationStatus: status },
+        include: { user: { select: { id: true, name: true, email: true, suspended: true } } },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+      }),
+      this.prisma.tailorProfile.count({ where: { applicationStatus: status } }),
+    ]);
+    return { tailors, total, skip, take };
+  }
+
+  async getAllTailors(params: { skip?: number; take?: number; search?: string }) {
+    const { skip = 0, take = 50, search } = params;
+    const where: any = { applicationStatus: 'APPROVED' };
+    if (search) {
+      where.OR = [
+        { name: { contains: search } },
+        { user: { email: { contains: search } } },
+      ];
+    }
+    const [tailors, total] = await Promise.all([
+      this.prisma.tailorProfile.findMany({
+        where,
+        include: {
+          user: { select: { id: true, name: true, email: true, suspended: true, banned: true } },
+          _count: { select: { payouts: true } },
+        },
+        orderBy: { rating: 'desc' },
+        skip,
+        take,
+      }),
+      this.prisma.tailorProfile.count({ where }),
+    ]);
+    return { tailors, total, skip, take };
+  }
+
+  async getTailorProfile(id: string) {
+    const profile = await this.prisma.tailorProfile.findUnique({
+      where: { id },
       include: {
-        user: { select: { id: true, name: true, email: true } },
-        garment: { include: { fabric: true } },
-        measurement: true,
+        user: { select: { id: true, name: true, email: true, suspended: true, banned: true } },
+        payouts: { orderBy: { createdAt: 'desc' }, take: 20 },
       },
+    });
+    if (!profile) throw new NotFoundException('Tailor not found');
+
+    const orders = await this.prisma.order.findMany({
+      where: { tailorId: profile.userId },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      include: { items: true, customer: { select: { name: true } } },
+    });
+
+    return { profile, orders };
+  }
+
+  async approveApplication(id: string, approved: boolean, reason?: string) {
+    const profile = await this.prisma.tailorProfile.findUnique({ where: { id } });
+    if (!profile) throw new NotFoundException('Tailor application not found');
+
+    return this.prisma.tailorProfile.update({
+      where: { id },
+      data: { applicationStatus: approved ? 'APPROVED' : 'REJECTED' },
+    });
+  }
+
+  async updateCommissionRate(id: string, rate: number) {
+    return this.prisma.tailorProfile.update({ where: { id }, data: { commissionRate: rate } });
+  }
+
+  async suspendTailor(tailorProfileId: string, suspended: boolean) {
+    const profile = await this.prisma.tailorProfile.findUnique({ where: { id: tailorProfileId } });
+    if (!profile) throw new NotFoundException('Tailor not found');
+    return this.prisma.user.update({ where: { id: profile.userId }, data: { suspended } });
+  }
+
+  async triggerPayout(tailorProfileId: string, amount: number, notes?: string) {
+    const profile = await this.prisma.tailorProfile.findUnique({
+      where: { id: tailorProfileId },
+      include: { user: true },
+    });
+    if (!profile) throw new NotFoundException('Tailor not found');
+
+    let transferId: string | null = null;
+    let status = 'COMPLETED';
+
+    if (!this.isMockMode && this.razorpay) {
+      try {
+        const transfer = await this.razorpay.transfers.create({
+          account: profile.userId,
+          amount: Math.round(amount * 100),
+          currency: 'INR',
+          notes: { reason: notes || 'Tailor commission payout' },
+        });
+        transferId = transfer.id;
+      } catch (err) {
+        console.error('Razorpay transfer failed:', err);
+        status = 'FAILED';
+      }
+    } else {
+      transferId = `mock_transfer_${Date.now()}`;
+    }
+
+    return this.prisma.payoutRecord.create({
+      data: {
+        tailorId: profile.userId,
+        tailorProfileId: profile.id,
+        amount,
+        razorpayTransferId: transferId,
+        status,
+        notes: notes || '',
+      },
+    });
+  }
+
+  async getPayoutLedger(tailorProfileId: string) {
+    const profile = await this.prisma.tailorProfile.findUnique({ where: { id: tailorProfileId } });
+    if (!profile) throw new NotFoundException('Tailor not found');
+    return this.prisma.payoutRecord.findMany({
+      where: { tailorProfileId },
       orderBy: { createdAt: 'desc' },
     });
-  }
-
-  // Get one specific order assigned to this tailor
-  async getOrderById(tailorId: string, orderId: string) {
-    const order = await this.prisma.order.findFirst({
-      where: { id: orderId, tailorId },
-      include: {
-        user: { select: { id: true, name: true, email: true } },
-        garment: { include: { fabric: true } },
-        measurement: true,
-      },
-    });
-    if (!order) throw new NotFoundException('Order not found');
-    return order;
-  }
-
-  // Tailor updates production status
-  async updateStatus(tailorId: string, orderId: string, status: string) {
-    const validStatuses = [
-      'CUTTING',
-      'STITCHING',
-      'QUALITY_CHECK',
-      'DISPATCHED',
-      'DELIVERED',
-    ];
-
-    if (!validStatuses.includes(status)) {
-      throw new NotFoundException('Invalid status');
-    }
-
-    const order = await this.prisma.order.findFirst({
-      where: { id: orderId, tailorId },
-    });
-
-    if (!order) {
-      throw new UnauthorizedException('Order not assigned to you');
-    }
-
-    return this.prisma.order.update({
-      where: { id: orderId },
-      data: { status: status as any },
-      include: {
-        garment: { include: { fabric: true } },
-        measurement: true,
-      },
-    });
-  }
-
-  // Get all tailors (admin only)
-  async getAllTailors() {
-    return this.prisma.user.findMany({
-      where: { role: 'TAILOR' },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        createdAt: true,
-        orders: {
-          select: {
-            id: true,
-            status: true,
-          },
-        },
-      },
-    });
-  }
-
-  // Register a new tailor (admin only)
-  async registerTailor(name: string, email: string) {
-    const existing = await this.prisma.user.findUnique({
-      where: { email },
-    });
-    if (existing) throw new NotFoundException('Email already registered');
-
-    return this.prisma.user.create({
-      data: {
-        name,
-        email,
-        password: null,
-        role: 'TAILOR',
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        createdAt: true,
-      },
-    });
-  }
-
-  // Get tailor stats
-  async getTailorStats(tailorId: string) {
-    const orders = await this.prisma.order.findMany({
-      where: { tailorId },
-    });
-
-    const total = orders.length;
-    const delivered = orders.filter(o => o.status === 'DELIVERED').length;
-    const inProgress = orders.filter(o =>
-      ['CUTTING', 'STITCHING', 'QUALITY_CHECK'].includes(o.status)
-    ).length;
-    const pending = orders.filter(o => o.status === 'PAYMENT_CONFIRMED').length;
-
-    return { total, delivered, inProgress, pending };
   }
 }
