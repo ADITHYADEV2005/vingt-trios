@@ -1,110 +1,131 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Body,
-  Param,
-  Headers,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Controller, Post, Get, Body, UseGuards, Req, Param, ForbiddenException } from '@nestjs/common';
 import { OrdersService } from './orders.service';
-import { JwtService } from '@nestjs/jwt';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { OrderStatus, Role } from '../common/types';
 
+@UseGuards(JwtAuthGuard)
 @Controller('orders')
 export class OrdersController {
-  constructor(
-    private ordersService: OrdersService,
-    private jwtService: JwtService,
-  ) {}
+  constructor(private ordersService: OrdersService) {}
 
-  private getPayload(auth: string) {
-    if (!auth || !auth.startsWith('Bearer ')) {
-      throw new UnauthorizedException('No token provided');
-    }
-    const token = auth.split(' ')[1];
-    return this.jwtService.verify(token);
+  @Post('create-payment')
+  async createPayment(@Req() req: any, @Body() body: { items: any[]; tailorId?: string }) {
+    return this.ordersService.createRazorpayOrder(req.user.id, body);
   }
 
-  // Customer places an order
-  @Post()
-  create(
-    @Headers('authorization') auth: string,
-    @Body() body: {
-      garmentId: string;
-      measurementId: string;
+  @Post('verify-payment')
+  async verifyPayment(
+    @Req() req: any,
+    @Body()
+    body: {
+      razorpayOrderId: string;
+      razorpayPaymentId: string;
+      razorpaySignature?: string;
+      items: any[];
+      tailorId?: string;
       totalPrice: number;
     },
   ) {
-    const payload = this.getPayload(auth);
-    return this.ordersService.createOrder(payload.sub, body);
+    return this.ordersService.verifyAndCreateOrder(req.user.id, body);
   }
 
-  // Customer sees their own orders
-  @Get('my')
-  getMyOrders(@Headers('authorization') auth: string) {
-    const payload = this.getPayload(auth);
-    return this.ordersService.getMyOrders(payload.sub);
+  @Get('customer')
+  async getCustomerOrders(@Req() req: any) {
+    return this.ordersService.getOrdersForCustomer(req.user.id);
   }
 
-  // Admin sees all orders
-  @Get('all')
-  getAllOrders(@Headers('authorization') auth: string) {
-    const payload = this.getPayload(auth);
-    if (payload.role !== 'ADMIN') {
-      throw new UnauthorizedException('Only admins can view all orders');
+  @Get('detail/:id')
+  async getOrderById(@Req() req: any, @Param('id') id: string) {
+    const order = await this.ordersService.getOrderById(id);
+    if (
+      req.user.role === Role.CUSTOMER &&
+      order.customerId !== req.user.id
+    ) {
+      throw new ForbiddenException('Forbidden resource');
     }
-    return this.ordersService.getAllOrders();
-  }
-
-  // Get one order by ID
-  @Get(':id')
-  getOne(
-    @Headers('authorization') auth: string,
-    @Param('id') id: string,
-  ) {
-    const payload = this.getPayload(auth);
-    return this.ordersService.getOrderById(payload.sub, id);
-  }
-
-  // Confirm payment (called after Razorpay confirms)
-  @Patch(':id/confirm-payment')
-  confirmPayment(
-    @Headers('authorization') auth: string,
-    @Param('id') id: string,
-  ) {
-    const payload = this.getPayload(auth);
-    if (payload.role !== 'ADMIN') {
-      throw new UnauthorizedException('Only admins can confirm payments');
+    if (
+      req.user.role === Role.TAILOR &&
+      order.tailorId !== req.user.id
+    ) {
+      throw new ForbiddenException('Forbidden resource');
     }
-    return this.ordersService.confirmPayment(id);
+    return order;
   }
 
-  // Tailor or admin updates production status
-  @Patch(':id/status')
-  updateStatus(
-    @Headers('authorization') auth: string,
-    @Param('id') id: string,
-    @Body() body: { status: string },
-  ) {
-    const payload = this.getPayload(auth);
-    if (payload.role !== 'ADMIN' && payload.role !== 'TAILOR') {
-      throw new UnauthorizedException('Only admins or tailors can update status');
+  // --- TAILOR PORTAL ---
+  @Get('tailor/queue')
+  async getTailorQueue(@Req() req: any) {
+    if (req.user.role !== Role.TAILOR) {
+      throw new ForbiddenException('Only tailors can view this queue');
     }
-    return this.ordersService.updateOrderStatus(id, body.status);
+    return this.ordersService.getOrdersForTailor(req.user.id);
   }
 
-  // Admin assigns tailor to order
-  @Patch(':id/assign-tailor')
-  assignTailor(
-    @Headers('authorization') auth: string,
-    @Param('id') id: string,
-    @Body() body: { tailorId: string },
+  @Post('tailor/status')
+  async updateStatus(
+    @Req() req: any,
+    @Body() body: { orderId: string; status: OrderStatus },
   ) {
-    const payload = this.getPayload(auth);
-    if (payload.role !== 'ADMIN') {
-      throw new UnauthorizedException('Only admins can assign tailors');
+    if (req.user.role !== Role.TAILOR) {
+      throw new ForbiddenException('Only tailors can modify status');
     }
-    return this.ordersService.assignTailor(id, body.tailorId);
+    return this.ordersService.updateOrderStatus(req.user.id, body.orderId, body.status);
+  }
+
+  // --- DESIGNER PORTAL ---
+  @Get('designer/queue')
+  async getDesignerQueue(@Req() req: any) {
+    if (req.user.role !== Role.DESIGNER) {
+      throw new ForbiddenException('Only fashion designers can access this queue');
+    }
+    return this.ordersService.getCustomOrdersForDesigner();
+  }
+
+  @Post('designer/proposal')
+  async submitProposal(
+    @Req() req: any,
+    @Body() body: { orderId: string; mockupImageUrl: string; description: string },
+  ) {
+    if (req.user.role !== Role.DESIGNER) {
+      throw new ForbiddenException('Only designers can submit proposals');
+    }
+    return this.ordersService.submitDesignerProposal(
+      req.user.id,
+      req.user.name,
+      body.orderId,
+      body,
+    );
+  }
+
+  @Post('proposal/:id/respond')
+  async respondToProposal(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { approve: boolean },
+  ) {
+    if (req.user.role !== Role.CUSTOMER) {
+      throw new ForbiddenException('Only customers can approve or reject proposals');
+    }
+    return this.ordersService.respondToProposal(req.user.id, id, body.approve);
+  }
+
+  // --- ADMIN PORTAL ---
+  @Get('admin/list')
+  async getAdminOrders(@Req() req: any) {
+    if (req.user.role !== Role.ADMIN) {
+      throw new ForbiddenException('Only administrators can view all orders');
+    }
+    return this.ordersService.getAllOrdersForAdmin();
+  }
+
+  @Post('admin/update')
+  async adminUpdateOrder(
+    @Req() req: any,
+    @Body() body: { orderId: string; status?: OrderStatus; tailorId?: string },
+  ) {
+    if (req.user.role !== Role.ADMIN) {
+      throw new ForbiddenException('Only administrators can edit orders');
+    }
+    return this.ordersService.adminUpdateOrder(body.orderId, body);
   }
 }
