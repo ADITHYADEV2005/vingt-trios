@@ -1,6 +1,7 @@
 node_modules
-.env
-.env.local
+.venv
 .next
 dist
-build
+*.log
+backend/dist
+backend/prisma/dev.db
