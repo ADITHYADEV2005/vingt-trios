@@ -3,23 +3,355 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { getFabrics, getTailors } from '@/lib/api';
-import { FiCheck, FiArrowRight, FiArrowLeft, FiCamera, FiAlertCircle, FiLock } from 'react-icons/fi';
+import {
+  FiCheck,
+  FiArrowRight,
+  FiArrowLeft,
+  FiCamera,
+  FiAlertCircle,
+  FiLock,
+  FiMaximize2,
+  FiFilm,
+  FiX,
+  FiDroplet,
+  FiLayers,
+  FiZoomIn
+} from 'react-icons/fi';
 
 /* ═══════════════════════════════════════════════════
    MASTER FORMALWEAR REFERENCE DATA
    Source: Formalwear Master Reference — Shirts, Pants & Blazers
 ═══════════════════════════════════════════════════ */
 
-const SHIRT_FABRICS = [
-  { id:'poplin',      name:'Poplin',                  desc:'Fine yarn, tight over-under weave, smooth minimal texture. The default office/business shirt fabric.',       formality:'High',      priceDelta:0 },
-  { id:'broadcloth',  name:'Broadcloth',              desc:'Like poplin but denser with a higher thread count. Smooth, flat surface ideal for formal settings.',         formality:'High',      priceDelta:400 },
-  { id:'royal-oxford',name:'Royal Oxford',            desc:'Finer than standard Oxford with a subtle sheen. Pairs beautifully with a suit.',                            formality:'High',      priceDelta:600 },
-  { id:'pinpoint',    name:'Pinpoint Oxford',         desc:'Finer yarn than basket-weave Oxford. Medium-high formality with a softer hand.',                            formality:'Med-High',  priceDelta:500 },
-  { id:'twill',       name:'Twill / Herringbone',     desc:'Diagonal weave, textured, resists creasing. Winter-leaning, excellent for colder months.',                  formality:'Med-High',  priceDelta:700 },
-  { id:'silk',        name:'Silk',                    desc:'Natural sheen, soft drape. Very high formality — special occasion only. Delicate care required.',            formality:'Very High', priceDelta:3200 },
-  { id:'egyptian',    name:'Egyptian Cotton',         desc:'Long-staple premium cotton, superfine and exceptionally soft. A mark of a truly bespoke shirt.',             formality:'High',      priceDelta:900 },
-  { id:'filafil',     name:'Fil-à-fil (End-on-end)',  desc:'Alternating coloured and white yarn giving a heathered, tonal look. Elegant and distinctive.',              formality:'High',      priceDelta:800 },
-  { id:'dobby',       name:'Dobby Weave',             desc:'Small woven geometric pattern in cotton or silk. Often paired with French cuffs for maximum formality.',     formality:'High',      priceDelta:1100 },
+/* ── 23 MASTER FABRICS COLLECTION ── */
+const MASTER_FABRIC_COLLECTION = [
+  {
+    id: 'cotton',
+    name: 'Cotton',
+    desc: 'Crisp, breathable all-natural staple weave. Highly absorbent, durable, and versatile for everyday and formal shirts.',
+    swatchUrl: '/image/COTTON FABRICS.jpg',
+    formality: 'High',
+    priceDelta: 0,
+    weave: 'Plain Weave',
+    weight: '140 gsm',
+    composition: '100% Pure Long-Staple Cotton',
+  },
+  {
+    id: 'linen',
+    name: 'Linen',
+    desc: 'Ultra-breathable open flax weave with natural slub texture. Keeps you cool in warm climates with distinct relaxed drape.',
+    swatchUrl: '/image/LINEN FABRIC.jpg',
+    formality: 'Resort / Summer',
+    priceDelta: 500,
+    weave: 'Open Plain Weave',
+    weight: '160 gsm',
+    composition: '100% European Organic Flax',
+  },
+  {
+    id: 'oxford',
+    name: 'Oxford',
+    desc: 'Basket-weave texture made with alternating white and colored threads. Soft, durable, and the definitive smart-casual choice.',
+    swatchUrl: '/image/OXFORD FABRICS.jpg',
+    formality: 'Med-High',
+    priceDelta: 350,
+    weave: 'Basket Weave',
+    weight: '170 gsm',
+    composition: '100% Combed Cotton',
+  },
+  {
+    id: 'poplin',
+    name: 'Poplin',
+    desc: 'Smooth, tight plain weave with fine horizontal ribs. Crisp finish with minimal texture — the quintessential executive formal choice.',
+    swatchUrl: '/image/poplin FABRIC.jpg',
+    formality: 'Very High',
+    priceDelta: 200,
+    weave: 'Fine Poplin Weave',
+    weight: '120 gsm',
+    composition: '100% Egyptian Giza Cotton',
+  },
+  {
+    id: 'twill',
+    name: 'Twill',
+    desc: 'Distinctive diagonal rib weave offering rich sheen, exceptional wrinkle resistance, and elegant drape.',
+    swatchUrl: '/image/TWILL FABRICS.jpg',
+    formality: 'High',
+    priceDelta: 400,
+    weave: '2/1 Diagonal Twill',
+    weight: '165 gsm',
+    composition: '100% Long-Staple Twill Cotton',
+  },
+  {
+    id: 'denim',
+    name: 'Denim',
+    desc: 'Sturdy warp-faced twill textile with indigo dyed warp and white weft. Iconic rugged character that softens beautifully over time.',
+    swatchUrl: '/image/DENIM FABRIC.jpg',
+    formality: 'Casual / Frontier',
+    priceDelta: 450,
+    weave: '3/1 Right-Hand Twill',
+    weight: '210 gsm',
+    composition: '100% Selvedge Cotton Denim',
+  },
+  {
+    id: 'chambray',
+    name: 'Chambray',
+    desc: 'Lightweight plain weave made with dyed warp and white weft. Looks similar to denim but lighter, softer, and more breathable.',
+    swatchUrl: '/image/Chambray FABRIC.jpg',
+    formality: 'Smart-Casual',
+    priceDelta: 300,
+    weave: 'Plain Weave',
+    weight: '135 gsm',
+    composition: '100% Cotton Chambray',
+  },
+  {
+    id: 'flannel',
+    name: 'Flannel',
+    desc: 'Brushed surface providing insulating softness and warm tactile comfort. Ideal for autumn, winter, and layered overshirts.',
+    swatchUrl: '/image/flannel-fabrics.jpg',
+    formality: 'Casual / Winter',
+    priceDelta: 600,
+    weave: 'Brushed Twill Weave',
+    weight: '200 gsm',
+    composition: '80% Cotton, 20% Merino Wool Blend',
+  },
+  {
+    id: 'corduroy',
+    name: 'Corduroy',
+    desc: 'Textured fabric featuring parallel vertical cords (wales) with rich velvety hand and vintage British tailoring heritage.',
+    swatchUrl: '/image/Corduroy FABRIC.jpg',
+    formality: 'Heritage Casual',
+    priceDelta: 700,
+    weave: 'Cut-Pile Wale Weave',
+    weight: '260 gsm',
+    composition: '100% Micro-Wale Cotton',
+  },
+  {
+    id: 'rayon',
+    name: 'Rayon',
+    desc: 'Silky cellulose fabric with flowing drape, soft moisture-wicking touch, and vibrant color brilliance.',
+    swatchUrl: '/image/Rayon FABRIC.jpg',
+    formality: 'Medium',
+    priceDelta: 300,
+    weave: 'Silky Plain Weave',
+    weight: '125 gsm',
+    composition: '100% Rayon Viscose',
+  },
+  {
+    id: 'viscose',
+    name: 'Viscose',
+    desc: 'Semi-synthetic fiber offering fluid silk-like luster, cooling breathability, and luxurious movement across the body.',
+    swatchUrl: '/image/Viscose FABRIC.jpg',
+    formality: 'Med-High',
+    priceDelta: 350,
+    weave: 'Smooth Viscose Weave',
+    weight: '130 gsm',
+    composition: '100% Premium Eco-Viscose',
+  },
+  {
+    id: 'polyester',
+    name: 'Polyester',
+    desc: 'High-performance micro-poly fabric designed for crease recovery, easy-care resilience, and color longevity.',
+    swatchUrl: '/image/Polyester FABRIC.jpg',
+    formality: 'Standard',
+    priceDelta: -100,
+    weave: 'Engineered Micro-Weave',
+    weight: '150 gsm',
+    composition: '100% Performance Polyester',
+  },
+  {
+    id: 'silk',
+    name: 'Silk',
+    desc: 'Natural mulberry protein filament. Unmatched natural shimmer, fluid drape, and ceremonial high luxury.',
+    swatchUrl: '/image/SILK FABRIC.jpg',
+    formality: 'Very High / Gala',
+    priceDelta: 2400,
+    weave: 'Mulberry Silk Weave',
+    weight: '90 gsm',
+    composition: '100% Pure Mulberry Silk',
+  },
+  {
+    id: 'satin',
+    name: 'Satin',
+    desc: 'Glossy, highly lustrous surface with dull reverse side. Classic black-tie tuxedo lapels, trims, and evening shirts.',
+    swatchUrl: '/image/SATIN.jpg',
+    formality: 'Black-Tie / Evening',
+    priceDelta: 1800,
+    weave: 'Satin Weave (Floating Warp)',
+    weight: '140 gsm',
+    composition: 'Silk-Polyester Luxury Satin Blend',
+  },
+  {
+    id: 'velvet',
+    name: 'Velvet',
+    desc: 'Dense cut-pile fabric with deep nap and light-absorbing richness. Luxurious evening jackets and smoking blazers.',
+    swatchUrl: '/image/Velvet.jpg',
+    formality: 'Evening Luxury',
+    priceDelta: 2200,
+    weave: 'Double-Cloth Cut-Pile',
+    weight: '320 gsm',
+    composition: 'Cotton-Silk Plush Velvet',
+  },
+  {
+    id: 'wool',
+    name: 'Wool',
+    desc: 'Fine worsted natural wool with temperature-regulating crimp, natural stretch, and crisp drape.',
+    swatchUrl: '/image/WOOL.jpg',
+    formality: 'Very High',
+    priceDelta: 1600,
+    weave: 'Super 120s Worsted Twill',
+    weight: '240 gsm',
+    composition: '100% Superfine Australian Merino Wool',
+  },
+  {
+    id: 'seersucker',
+    name: 'Seersucker',
+    desc: 'Iconic puckered fabric woven with slack-tension yarn. Keeps the fabric away from the skin for optimal air circulation.',
+    swatchUrl: '/image/Seersucker.jpg',
+    formality: 'Summer High-Style',
+    priceDelta: 550,
+    weave: 'Slack-Tension Crinkle Weave',
+    weight: '130 gsm',
+    composition: '100% Puckered Cotton',
+  },
+  {
+    id: 'voile',
+    name: 'Voile',
+    desc: 'Semi-sheer lightweight fabric woven from high-twist yarn. Crisp yet whisper-soft, perfect for tropical climates.',
+    swatchUrl: '/image/Voile.jpg',
+    formality: 'Lightweight Formal',
+    priceDelta: 400,
+    weave: 'High-Twist Plain Weave',
+    weight: '85 gsm',
+    composition: '100% Swiss Cotton Voile',
+  },
+  {
+    id: 'dobby',
+    name: 'Dobby',
+    desc: 'Distinctive geometric micro-motifs woven directly into the ground cloth using specialized dobby looms. Subtle richness.',
+    swatchUrl: '/image/Dobby.png',
+    formality: 'High',
+    priceDelta: 650,
+    weave: 'Dobby Loom Geometric Weave',
+    weight: '145 gsm',
+    composition: '100% Dobby Textured Cotton',
+  },
+  {
+    id: 'jacquard',
+    name: 'Jacquard',
+    desc: 'Complex figured patterns woven directly into the textile with dimensional relief. Exceptional artistic distinction.',
+    swatchUrl: '/image/Jacquard.jpg',
+    formality: 'Very High / Statement',
+    priceDelta: 1200,
+    weave: 'Jacquard Damask Weave',
+    weight: '190 gsm',
+    composition: 'Silk-Cotton Jacquard Brocade',
+  },
+  {
+    id: 'herringbone',
+    name: 'Herringbone',
+    desc: 'Sophisticated broken-twill chevron pattern. Offers visual structure, wrinkle recovery, and tailored prestige.',
+    swatchUrl: '/image/Herringbone.jpg',
+    formality: 'High',
+    priceDelta: 500,
+    weave: 'Broken Chevron Twill',
+    weight: '160 gsm',
+    composition: '100% Combed Herringbone Cotton',
+  },
+  {
+    id: 'terry',
+    name: 'Terry',
+    desc: 'Plush looped-pile cotton fabric with high tactile comfort and moisture absorbency. Modern resort & polo styling.',
+    swatchUrl: '/image/Terry.jpg',
+    formality: 'Resort Casual',
+    priceDelta: 300,
+    weave: 'Looped Pile Weave',
+    weight: '230 gsm',
+    composition: '100% French Terry Cotton',
+  },
+  {
+    id: 'jersey',
+    name: 'Jersey',
+    desc: 'Single-knit stretchy fabric offering supple flexibility and casual drape. Unmatched casual everyday comfort.',
+    swatchUrl: '/image/Jersey.jpg',
+    formality: 'Casual Stretch',
+    priceDelta: 200,
+    weave: 'Single Weft Knit',
+    weight: '180 gsm',
+    composition: '95% Pima Cotton, 5% Elastane',
+  },
+];
+
+/* ── COLOR SELECTION (28 HUES IN 5 FAMILIES) ── */
+const ALL_COLOR_SELECTION = [
+  // Classic Essentials & Monochromes
+  { id: 'pure-white',     name: 'Pure White',           hex: '#FFFFFF', border: '#D1D5DB', group: 'classic', desc: 'Timeless crisp formal white' },
+  { id: 'off-white',      name: 'Off-White / Chalk',    hex: '#F8F9FA', border: '#D1D5DB', group: 'classic', desc: 'Subtle warm architectural white' },
+  { id: 'soft-ivory',     name: 'Soft Ivory / Cream',   hex: '#FFFDD0', border: '#D1D5DB', group: 'classic', desc: 'Regal warm vintage undertone' },
+  { id: 'jet-black',      name: 'Jet Black',            hex: '#0A0A0A', group: 'classic', desc: 'Deep black for formal & black-tie' },
+  { id: 'charcoal-grey',  name: 'Charcoal Grey',        hex: '#2B2D42', group: 'classic', desc: 'Deep boardroom neutral' },
+  { id: 'slate-grey',     name: 'Slate Grey',           hex: '#64748B', group: 'classic', desc: 'Balanced cool grey' },
+  { id: 'silver-mist',    name: 'Silver Mist',          hex: '#CBD5E1', border: '#94A3B8', group: 'classic', desc: 'Lustrous light metallic grey' },
+
+  // Blues & Navies
+  { id: 'midnight-navy',  name: 'Midnight Navy',        hex: '#0F172A', group: 'blues', desc: 'The definitive tailoring navy' },
+  { id: 'royal-navy',     name: 'Royal Navy',           hex: '#1E3A8A', group: 'blues', desc: 'Rich deep saturated navy' },
+  { id: 'french-blue',    name: 'French Blue',          hex: '#2563EB', group: 'blues', desc: 'Vibrant distinguished blue' },
+  { id: 'sky-blue',       name: 'Sky Blue',             hex: '#93C5FD', group: 'blues', desc: 'Classic everyday office staple' },
+  { id: 'powder-blue',    name: 'Powder Blue',          hex: '#BFDBFE', border: '#93C5FD', group: 'blues', desc: 'Airy soft pastel blue' },
+  { id: 'cerulean',       name: 'Cerulean / Azure',     hex: '#0284C7', group: 'blues', desc: 'Mediterranean bright blue' },
+  { id: 'indigo',         name: 'Indigo Chambray',      hex: '#3730A3', group: 'blues', desc: 'Heritage dyed denim blue' },
+
+  // Earth Tones & Greens
+  { id: 'forest-green',   name: 'Deep Forest Green',    hex: '#14532D', group: 'earth', desc: 'Earthy luxury tailored green' },
+  { id: 'olive-drab',     name: 'Classic Olive Green',  hex: '#3F6212', group: 'earth', desc: 'Tactical and casual earth tone' },
+  { id: 'sage-green',     name: 'Sage Green',           hex: '#84A98C', group: 'earth', desc: 'Modern muted herbal tone' },
+  { id: 'camel',          name: 'Warm Camel',           hex: '#C19A6B', group: 'earth', desc: 'British heritage luxury tan' },
+  { id: 'sand-khaki',     name: 'Sand / Khaki',         hex: '#D4B996', group: 'earth', desc: 'Light neutral casual tone' },
+  { id: 'tobacco-brown',  name: 'Tobacco Brown',        hex: '#78350F', group: 'earth', desc: 'Rich warm autumnal brown' },
+  { id: 'mocha-espresso', name: 'Dark Mocha',           hex: '#451A03', group: 'earth', desc: 'Deep roasted espresso shade' },
+
+  // Warm & Reds
+  { id: 'royal-burgundy', name: 'Royal Burgundy',       hex: '#800020', group: 'warm', desc: 'Aristocratic deep wine' },
+  { id: 'crimson-red',    name: 'Crimson Red',          hex: '#991B1B', group: 'warm', desc: 'Bold power statement red' },
+  { id: 'burnt-terracotta',name:'Terracotta / Rust',    hex: '#C2410C', group: 'warm', desc: 'Warm Mediterranean terracotta' },
+  { id: 'mustard-gold',   name: 'Mustard Gold',         hex: '#B45309', group: 'warm', desc: 'Vintage warm amber tone' },
+
+  // Pastels & Soft Tones
+  { id: 'dusty-rose',     name: 'Dusty Rose',           hex: '#FDA4AF', border: '#FB7185', group: 'pastels', desc: 'Sophisticated muted pink' },
+  { id: 'pale-lilac',     name: 'Pale Lilac / Lavender',hex: '#DDD6FE', border: '#C4B5FD', group: 'pastels', desc: 'Ethereal subtle purple hue' },
+  { id: 'mint-water',     name: 'Mint Water',           hex: '#A7F3D0', border: '#6EE7B7', group: 'pastels', desc: 'Cool refreshing summer pastel' },
+];
+
+/* ── TYPES / PATTERN SELECTION (22 TYPES IN 4 GROUPS) ── */
+const ALL_TYPE_PATTERNS = [
+  // Plain / Solid
+  { id: 'solid-smooth',   name: 'Solid / Plain Smooth', type: 'plain',  desc: 'Flawless unpatterned monochromatic surface. Universal formal benchmark.', icon: '■' },
+  { id: 'solid-textured', name: 'Solid Textured Weave', type: 'plain',  desc: 'Dimensional woven texture without contrast dye. Subtle refined depth.', icon: '░' },
+  { id: 'melange-heather',name: 'Melange / Heathered',  type: 'plain',  desc: 'Interwoven multi-tone fibers creating a soft frosted appearance.', icon: '▒' },
+
+  // Lined / Striped
+  { id: 'pinstripe',      name: 'Pinstripe ("Line Line")', type: 'lined', desc: 'Sharp, ultra-thin pinhead stripes. Elongates the torso with precision.', icon: '|||' },
+  { id: 'bengal-stripe',  name: 'Bengal Stripe',        type: 'lined', desc: 'Evenly spaced alternating white and colored vertical stripes.', icon: '||||' },
+  { id: 'hairline-stripe',name: 'Hairline Micro-Stripe',type: 'lined', desc: 'Ultra-fine stripes placed one thread apart. Appears solid from afar.', icon: '|||||' },
+  { id: 'candy-stripe',   name: 'Candy Stripe',         type: 'lined', desc: 'Vibrant medium-width classic summer stripes with crisp contrast.', icon: '❚❚❚' },
+  { id: 'chalk-stripe',   name: 'Chalk Stripe',         type: 'lined', desc: 'Soft-edged woven rope or flannel stripes mimicking tailor\'s chalk.', icon: '░|░|' },
+  { id: 'awning-stripe',  name: 'Awning / Bold Stripe', type: 'lined', desc: 'Wide architectural statement stripes for high-impact resort wear.', icon: '█ █' },
+
+  // Checks & Plaids
+  { id: 'windowpane',     name: 'Windowpane Check',     type: 'check', desc: 'Minimalist wide box check forming clean geometric window panes.', icon: '⊞' },
+  { id: 'gingham',        name: 'Gingham Check',        type: 'check', desc: 'Two-color checkered block pattern of equal vertical & horizontal bands.', icon: '▦' },
+  { id: 'tattersall',     name: 'Tattersall Grid',      type: 'check', desc: 'Thin dual-color overcheck grid on an off-white background.', icon: '┼┼' },
+  { id: 'glen-plaid',     name: 'Glen Plaid / Prince of Wales', type: 'check', desc: 'Legendary criss-cross Glenurquhart check with rich heritage.', icon: '▤' },
+  { id: 'tartan-plaid',   name: 'Tartan Heritage Plaid',type: 'check', desc: 'Multi-color highland intersecting horizontal and vertical bands.', icon: '▧' },
+  { id: 'micro-check',    name: 'Micro-Graph Check',    type: 'check', desc: 'Tiny millimeter graph-paper check for modern boardroom polish.', icon: '⚏' },
+  { id: 'buffalo-check',  name: 'Buffalo Block Check',  type: 'check', desc: 'Oversized lumberjack and overshirt double-tone check pattern.', icon: '◫' },
+
+  // Geometric, Textured & Figures
+  { id: 'houndstooth',    name: 'Houndstooth / Dogtooth', type: 'other', desc: 'Famous duotone jagged four-pointed broken check pattern.', icon: '❖' },
+  { id: 'herringbone',    name: 'Herringbone Chevron',  type: 'other', desc: 'Distinguished V-shaped broken twill chevron zigzag weave.', icon: '≋' },
+  { id: 'birdseye',       name: 'Birdseye Motif',       type: 'other', desc: 'Fine circular woven micro-dots resembling small bird eyes.', icon: '◉' },
+  { id: 'nailhead',       name: 'Nailhead Micro-Dot',   type: 'other', desc: 'Square micro-dots creating rich visual texture and clean drape.', icon: '⊡' },
+  { id: 'dobby-micro',    name: 'Dobby Geometric',      type: 'other', desc: 'Loom-woven micro diamond or waffle structural pattern.', icon: '◈' },
+  { id: 'jacquard-damask',name: 'Jacquard Floral Damask',type: 'other', desc: 'Lustrous figured floral tapestry motif woven for evening gala wear.', icon: '✿' },
 ];
 
 const PANT_FABRICS = [
@@ -44,37 +376,184 @@ const BLAZER_FABRICS = [
   { id:'cotton-twill-b', name:'Cotton Twill / Gabardine',desc:'Structured but casual-leaning. Ideal for a business-casual blazer or a summer occasion.',               formality:'Med',       priceDelta:0 },
 ];
 
-/* ── SHIRT STYLES ── */
+/* ── SHIRT STYLES (18 CUSTOM MODELS WITH SIGNATURE PRESETS) ── */
 const SHIRT_MODELS = [
-  { id:'dress-shirt',  name:'Formal Dress Shirt',      desc:'Standard everyday formal shirt. Versatile across all business settings.' },
-  { id:'slim-fit',     name:'Slim / Tailored Fit',     desc:'Closer to the body with a tapered waist. Modern, polished silhouette.' },
-  { id:'athletic-fit', name:'Modern / Athletic Fit',   desc:'Fuller chest and shoulders, tapered waist. For athletic builds.' },
-  { id:'classic-fit',  name:'Classic / Regular Fit',   desc:'Full cut through chest and waist. Traditional comfort and movement.' },
-  { id:'black-tie',    name:'Full-Dress / Black-Tie Shirt', desc:'Wing collar, French cuffs, sometimes a pleated bib. Black-tie and white-tie only.' },
+  {
+    id: 'formal',
+    name: 'Formal Shirt',
+    desc: 'Pristine formal dress shirt designed for black-tie elegance and sharp boardroom tailoring.',
+    locks: { collar: 'spread', cuff: 'french', sleeve: 'full', pocket: 'none' },
+    features: { collar: 'Spread', cuff: 'French', sleeve: 'Full', pocket: 'None' },
+  },
+  {
+    id: 'casual',
+    name: 'Casual Shirt',
+    desc: 'Relaxed everyday button-down shirt with durable barrel cuffs and utility chest pocket.',
+    locks: { collar: 'button-down', cuff: 'barrel', sleeve: 'full', pocket: 'chest' },
+    features: { collar: 'Button-Down', cuff: 'Barrel', sleeve: 'Full', pocket: 'Chest' },
+  },
+  {
+    id: 'oxford',
+    name: 'Oxford Shirt',
+    desc: 'Heritage basket-weave Oxford shirt with roll collar, rounded barrel cuffs, and single chest pocket.',
+    locks: { collar: 'button-down', cuff: 'rounded', sleeve: 'full', pocket: 'chest' },
+    features: { collar: 'Button-Down', cuff: 'Rounded', sleeve: 'Full', pocket: 'Chest' },
+  },
+  {
+    id: 'overshirt',
+    name: 'Overshirt',
+    desc: 'Contemporary layering piece featuring relaxed camp collar, dual-setting adjustable cuffs, and deep patch pocket.',
+    locks: { collar: 'camp', cuff: 'adjustable', sleeve: 'full', pocket: 'patch' },
+    features: { collar: 'Camp', cuff: 'Adjustable', sleeve: 'Full', pocket: 'Patch' },
+  },
+  {
+    id: 'denim',
+    name: 'Denim Shirt',
+    desc: 'Authentic washed denim cut with western yoke, pearlized snap button cuffs, and secure flap pocket.',
+    locks: { collar: 'western', cuff: 'snap', sleeve: 'full', pocket: 'flap' },
+    features: { collar: 'Western', cuff: 'Snap', sleeve: 'Full', pocket: 'Flap' },
+  },
+  {
+    id: 'linen',
+    name: 'Linen Shirt',
+    desc: 'Ultra-breathable summer linen shirt featuring breezy Cuban collar, folded short cuffs, and clean side slit pockets.',
+    locks: { collar: 'cuban', cuff: 'folded', sleeve: 'short', pocket: 'side' },
+    features: { collar: 'Cuban', cuff: 'Folded', sleeve: 'Short', pocket: 'Side' },
+  },
+  {
+    id: 'flannel',
+    name: 'Flannel Shirt',
+    desc: 'Cozy brushed cotton-wool flannel with structured spread collar, sturdy barrel cuffs, and buttoned flap pocket.',
+    locks: { collar: 'spread', cuff: 'barrel', sleeve: 'full', pocket: 'flap' },
+    features: { collar: 'Spread', cuff: 'Barrel', sleeve: 'Full', pocket: 'Flap' },
+  },
+  {
+    id: 'hawaiian',
+    name: 'Hawaiian Shirt',
+    desc: 'Resort-ready tropical silhouette with wide notch camp collar, straight short sleeves, and seamless pocketless flow.',
+    locks: { collar: 'camp', cuff: 'straight', sleeve: 'short', pocket: 'none' },
+    features: { collar: 'Camp', cuff: 'Straight', sleeve: 'Short', pocket: 'None' },
+  },
+  {
+    id: 'cuban-collar',
+    name: 'Cuban Collar Shirt',
+    desc: 'Retro Riviera statement shirt with open Cuban collar, straight cuffs, and a tailored chest patch pocket.',
+    locks: { collar: 'cuban', cuff: 'straight', sleeve: 'short', pocket: 'patch' },
+    features: { collar: 'Cuban', cuff: 'Straight', sleeve: 'Short', pocket: 'Patch' },
+  },
+  {
+    id: 'mandarin',
+    name: 'Mandarin Shirt',
+    desc: 'Sleek minimalist standing mandarin collar with clean button cuffs and a pocketless chest for contemporary eastern elegance.',
+    locks: { collar: 'mandarin', cuff: 'button', sleeve: 'full', pocket: 'none' },
+    features: { collar: 'Mandarin', cuff: 'Button', sleeve: 'Full', pocket: 'None' },
+  },
+  {
+    id: 'western',
+    name: 'Western Shirt',
+    desc: 'Frontier heritage design with pointed western collar, pearlescent snap cuffs, and dual front chest pockets.',
+    locks: { collar: 'western', cuff: 'snap', sleeve: 'full', pocket: 'double' },
+    features: { collar: 'Western', cuff: 'Snap', sleeve: 'Full', pocket: 'Double' },
+  },
+  {
+    id: 'utility',
+    name: 'Utility Shirt',
+    desc: 'Tactical field aesthetic featuring durable utility collar, adjustable tabs, and multiple cargo pockets.',
+    locks: { collar: 'utility', cuff: 'adjustable', sleeve: 'full', pocket: 'multiple' },
+    features: { collar: 'Utility', cuff: 'Adjustable', sleeve: 'Full', pocket: 'Multiple' },
+  },
+  {
+    id: 'bowling',
+    name: 'Bowling Shirt',
+    desc: 'Vintage mid-century classic with two-tone camp collar, straight cut cuffs, and single chest pocket.',
+    locks: { collar: 'camp', cuff: 'straight', sleeve: 'short', pocket: 'chest' },
+    features: { collar: 'Camp', cuff: 'Straight', sleeve: 'Short', pocket: 'Chest' },
+  },
+  {
+    id: 'dress',
+    name: 'Dress Shirt',
+    desc: 'Ceremonial white-tie gala dress shirt with wing tip collar for bowties, French double cuffs, and pocketless front.',
+    locks: { collar: 'wing', cuff: 'french', sleeve: 'full', pocket: 'none' },
+    features: { collar: 'Wing', cuff: 'French', sleeve: 'Full', pocket: 'None' },
+  },
+  {
+    id: 'henley',
+    name: 'Henley Shirt',
+    desc: 'Modern collarless band neckline with buttoned front placket, short sleeves, and clean pocketless finish.',
+    locks: { collar: 'band', cuff: 'button', sleeve: 'short', pocket: 'none' },
+    features: { collar: 'Band', cuff: 'Button', sleeve: 'Short', pocket: 'None' },
+  },
+  {
+    id: 'corduroy',
+    name: 'Corduroy Shirt',
+    desc: 'Richly textured fine-wale micro corduroy with sharp point collar, barrel cuffs, and reinforced chest patch pocket.',
+    locks: { collar: 'point', cuff: 'barrel', sleeve: 'full', pocket: 'patch' },
+    features: { collar: 'Point', cuff: 'Barrel', sleeve: 'Full', pocket: 'Patch' },
+  },
+  {
+    id: 'shirt-jacket',
+    name: 'Shirt Jacket',
+    desc: 'Heavyweight overshirt hybrid featuring structured spread collar, dual-setting adjustable cuffs, and oversized dual patch pockets.',
+    locks: { collar: 'spread', cuff: 'adjustable', sleeve: 'full', pocket: 'patch' },
+    features: { collar: 'Spread', cuff: 'Adjustable', sleeve: 'Full', pocket: 'Patch' },
+  },
+  {
+    id: 'tunic',
+    name: 'Tunic Shirt',
+    desc: 'Artisan longline tunic shirt featuring regal mandarin collar, full buttoned sleeves, and functional hidden side pockets.',
+    locks: { collar: 'mandarin', cuff: 'button', sleeve: 'full', pocket: 'side' },
+    features: { collar: 'Mandarin', cuff: 'Button', sleeve: 'Full', pocket: 'Side' },
+  },
 ];
 
 const SHIRT_COLLARS = [
-  { id:'spread',    name:'Spread Collar',    desc:'The most versatile formal collar. Works with most tie knots.' },
-  { id:'cutaway',   name:'Cutaway Collar',   desc:'Extreme spread — ideal for wide Windsor knots. Very contemporary.' },
-  { id:'windsor',   name:'Windsor Collar',   desc:'Wide spread, similar to cutaway. Named for the Duke of Windsor.' },
-  { id:'point',     name:'Point / Straight', desc:'Classic narrow spread. Traditional and always appropriate.' },
-  { id:'wing',      name:'Wing Collar',      desc:'Folded points. Black-tie and white-tie only — worn with a bow tie.' },
-  { id:'club',      name:'Club Collar',      desc:'Rounded corners. Elegant Edwardian heritage. Pairs with a bar pin.' },
-  { id:'band',      name:'Band Collar',      desc:'No fold, no tie. Semi-formal — considered collarless modern styling.' },
+  { id:'spread',      name:'Spread Collar',       desc:'Versatile formal collar. Works with most tie knots.' },
+  { id:'button-down', name:'Button-Down Collar',  desc:'Classic roll collar with buttons for casual & Oxford styles.' },
+  { id:'camp',        name:'Camp Collar',         desc:'One-piece flat notch open collar for overshirts & bowling styles.' },
+  { id:'western',     name:'Western Collar',      desc:'Pointed heritage collar built for rugged frontier & denim looks.' },
+  { id:'cuban',       name:'Cuban Collar',        desc:'Retro notched open lapel collar for summer linen shirts.' },
+  { id:'mandarin',    name:'Mandarin Collar',     desc:'Minimalist short upright standing collar for modern eastern silhouettes.' },
+  { id:'utility',     name:'Utility Collar',      desc:'Heavy-duty reinforced collar built for tactical and field shirts.' },
+  { id:'wing',        name:'Wing Collar',         desc:'Folded points reserved for black-tie & white-tie tuxedo shirts.' },
+  { id:'band',        name:'Band Collar',         desc:'Collarless neckline band ideal for clean casual Henley wear.' },
+  { id:'point',       name:'Point / Straight',    desc:'Classic narrow spread. Traditional and universally appropriate.' },
+  { id:'cutaway',     name:'Cutaway Collar',      desc:'Extreme spread — ideal for wide Windsor knots.' },
+  { id:'windsor',     name:'Windsor Collar',      desc:'Wide spread named for the Duke of Windsor.' },
+  { id:'club',        name:'Club Collar',         desc:'Rounded corners. Elegant Edwardian heritage.' },
 ];
 
 const SHIRT_CUFFS = [
-  { id:'barrel',       name:'Barrel Cuff',          desc:'Single layer, button closure. Everyday formal standard.' },
-  { id:'french',       name:'French / Double Cuff',  desc:'Folded back, fastened with cufflinks. Most formal cuff. Pairs with formal jackets.' },
-  { id:'convertible',  name:'Convertible Cuff',      desc:'Works with both buttons and cufflinks — the flexible option.' },
-  { id:'rounded',      name:'Rounded Barrel',        desc:'Barrel cuff with rounded corners. Subtle cosmetic distinction.' },
-  { id:'mitred',       name:'Mitred Barrel',         desc:'Barrel cuff with angled corners. Clean, architectural edge.' },
+  { id:'french',      name:'French / Double Cuff', desc:'Folded back, fastened with cufflinks for maximum formality.' },
+  { id:'barrel',      name:'Barrel Cuff',          desc:'Single layer, button closure. Everyday formal and casual standard.' },
+  { id:'rounded',     name:'Rounded Barrel',       desc:'Curved edge barrel cuff typical of classic Oxford shirts.' },
+  { id:'adjustable',  name:'Adjustable Cuff',      desc:'Dual-button sizing cuff for overshirts and jacket hybrids.' },
+  { id:'snap',        name:'Snap Fastener Cuff',   desc:'Pearlized heavy-duty snap fasteners for western and denim shirts.' },
+  { id:'folded',      name:'Folded Resort Cuff',   desc:'Permanently rolled/folded short hem for breezy linen shirts.' },
+  { id:'straight',    name:'Straight Cut Cuff',    desc:'Clean straight-hemmed short sleeve for bowling and Hawaiian shirts.' },
+  { id:'button',      name:'Single Button Cuff',   desc:'Clean minimalist single-button closure for tunics and mandarins.' },
+  { id:'convertible', name:'Convertible Cuff',     desc:'Dual-purpose cuff that works with either buttons or cufflinks.' },
+  { id:'mitred',      name:'Mitred Barrel',        desc:'Angled corner barrel cuff with clean architectural lines.' },
+];
+
+const SHIRT_SLEEVES = [
+  { id:'full',        name:'Full Sleeve',          desc:'Full length tailored sleeve ending cleanly at the wrist.' },
+  { id:'short',       name:'Short Sleeve',         desc:'Relaxed warm-weather sleeve ending mid-bicep.' },
+];
+
+const SHIRT_POCKETS = [
+  { id:'none',        name:'No Pocket',            desc:'Seamless minimalist front — standard for formal and dress shirts.' },
+  { id:'chest',       name:'Single Chest Pocket',  desc:'Tailored left breast pocket for everyday pens or glasses.' },
+  { id:'patch',       name:'Patch Pocket',         desc:'Topstitched reinforced patch pocket for casual and corduroy shirts.' },
+  { id:'flap',        name:'Flap Pocket',          desc:'Buttoned protective flap pocket for denim and flannel silhouettes.' },
+  { id:'side',        name:'Side Seam Pockets',    desc:'Functional hidden side pockets tailored into long tunics and linen.' },
+  { id:'double',      name:'Double Chest Pockets', desc:'Symmetrical twin chest pockets with flaps or snaps for western shirts.' },
+  { id:'multiple',    name:'Multiple Utility Pockets', desc:'Multi-compartment tactical cargo pockets for overshirts.' },
 ];
 
 const SHIRT_PLACKETS = [
   { id:'standard',    name:'Standard Placket',     desc:'Traditional button band. Appropriate for all formal contexts.' },
-  { id:'french-front',name:'French Front',          desc:'Hidden buttons, very clean flat front. Elevated formal appearance.' },
-  { id:'pleated-bib', name:'Pleated Bib Front',     desc:'Formal dress shirts only — black-tie and white-tie events.' },
+  { id:'french-front',name:'French Front',         desc:'Hidden buttons, very clean flat front. Elevated formal appearance.' },
+  { id:'pleated-bib', name:'Pleated Bib Front',    desc:'Formal dress shirts only — black-tie and white-tie events.' },
 ];
 
 /* ── PANT STYLES ── */
@@ -170,9 +649,9 @@ const BLAZER_FITS = [
 const BASE: Record<string,number> = { shirt:2499, pant:3499, blazer:9999 };
 
 const STEPS: Record<string,string[]> = {
-  shirt:  ['Model','Fabric','Collar','Cuff','Placket','Size','Summary'],
-  pant:   ['Model','Fabric','Details','Size','Summary'],
-  blazer: ['Model','Fabric','Lapel & Buttons','Vent & Pockets','Fit & Lining','Size','Summary'],
+  shirt:  ['Model','Fabric','Color & Pattern','Collar & Cuff','Sleeve & Pocket','Size','Summary'],
+  pant:   ['Model','Fabric','Color & Pattern','Details','Size','Summary'],
+  blazer: ['Model','Fabric','Color & Pattern','Lapel & Buttons','Vent & Pockets','Fit & Lining','Size','Summary'],
 };
 
 const SIZES: Record<string,string[]> = {
@@ -233,13 +712,21 @@ export default function CustomizePage() {
   const [tailors,  setTailors] = useState<any[]>([]);
   const [tailor,   setTailor]  = useState<any>(null);
   const [apiError, setApiError]= useState('');
+  const [inspectFabric, setInspectFabric] = useState<any | null>(null);
+  const [inspectTab, setInspectTab] = useState<'image' | 'video'>('image');
+  const [colorGroup, setColorGroup] = useState<string>('all');
+  const [patternType, setPatternType] = useState<string>('all');
 
-  // ── API fabrics (prefer local static data, API is supplementary)
-  const localFabrics: Record<string,any[]> = { shirt:SHIRT_FABRICS, pant:PANT_FABRICS, blazer:BLAZER_FABRICS };
-  const [fabrics, setFabrics] = useState<any[]>(localFabrics[slug]||SHIRT_FABRICS);
+  // ── API fabrics (prefer local master collection with rich images)
+  const localFabrics: Record<string,any[]> = { shirt: MASTER_FABRIC_COLLECTION, pant: PANT_FABRICS, blazer: BLAZER_FABRICS };
+  const [fabrics, setFabrics] = useState<any[]>(localFabrics[slug]||MASTER_FABRIC_COLLECTION);
 
   useEffect(()=>{
-    getFabrics(slug.toUpperCase()).then(d=>{ if(d?.length) setFabrics(d.map((f:any)=>({ ...f, colors: typeof f.colors==='string' ? f.colors.split(',') : f.colors }))); }).catch(()=>{});
+    if (slug === 'shirt') {
+      setFabrics(MASTER_FABRIC_COLLECTION);
+    } else {
+      getFabrics(slug.toUpperCase()).then(d=>{ if(d?.length) setFabrics(d.map((f:any)=>({ ...f, colors: typeof f.colors==='string' ? f.colors.split(',') : f.colors }))); }).catch(()=>{});
+    }
     getTailors().then(setTailors).catch(()=>{});
   },[slug]);
 
@@ -291,18 +778,32 @@ export default function CustomizePage() {
       <div>
         <h2 className="step-heading">Select a Model / Silhouette</h2>
         <p style={{color:'var(--text-2)',fontSize:'.88rem',marginBottom:24,lineHeight:1.6}}>
-          The model defines the overall cut and silhouette. Some models lock certain detail options — these will be highlighted when you reach that step.
+          {slug==='shirt'
+            ? 'Choose from our 18 iconic shirt silhouettes. Each model features its signature collar, cuff, sleeve, and pocket specifications calibrated by master artisans.'
+            : 'The model defines the overall cut and silhouette. Some models lock certain detail options — these will be highlighted when you reach that step.'}
         </p>
         <div className="style-opts-grid">
           {modelList.map((m:any)=>(
             <div key={m.id} className={`style-opt-card${model?.id===m.id?' sel':''}`} onClick={()=>setModel(m)}>
               <div className="style-opt-name">{m.name}</div>
               <div className="style-opt-desc">{m.desc}</div>
+
+              {/* Signature Feature Preview Grid (Shirt Models) */}
+              {m.features && (
+                <div style={{marginTop:12,padding:'8px 10px',background:'rgba(255,255,255,0.03)',border:'1px solid var(--border)',borderRadius:'var(--r-sm)',display:'grid',gridTemplateColumns:'1fr 1fr',gap:'6px 10px',fontSize:'.7rem'}}>
+                  <div style={{color:'var(--text-3)'}}>Collar: <strong style={{color:'var(--text)'}}>{m.features.collar}</strong></div>
+                  <div style={{color:'var(--text-3)'}}>Cuff: <strong style={{color:'var(--text)'}}>{m.features.cuff}</strong></div>
+                  <div style={{color:'var(--text-3)'}}>Sleeve: <strong style={{color:'var(--text)'}}>{m.features.sleeve}</strong></div>
+                  <div style={{color:'var(--text-3)'}}>Pocket: <strong style={{color:'var(--text)'}}>{m.features.pocket}</strong></div>
+                </div>
+              )}
+
+              {/* Locks notification pill */}
               {m.locks && Object.keys(m.locks).length>0 && (
-                <div style={{marginTop:8,display:'flex',flexWrap:'wrap',gap:5}}>
-                  {Object.entries(m.locks).map(([k]:any)=>(
-                    <span key={k} style={{display:'inline-flex',alignItems:'center',gap:3,padding:'2px 7px',background:'rgba(236,187,13,.1)',border:'1px solid rgba(236,187,13,.2)',borderRadius:50,fontSize:'.65rem',color:'var(--gold)'}}>
-                      <FiLock size={9}/> {k} locked
+                <div style={{marginTop:10,display:'flex',flexWrap:'wrap',gap:5}}>
+                  {Object.entries(m.locks).map(([k, v]:any)=>(
+                    <span key={k} style={{display:'inline-flex',alignItems:'center',gap:3,padding:'2px 8px',background:'rgba(236,187,13,.1)',border:'1px solid rgba(236,187,13,.2)',borderRadius:50,fontSize:'.65rem',color:'var(--gold)'}}>
+                      <FiLock size={9}/> {k}: {v}
                     </span>
                   ))}
                 </div>
@@ -317,50 +818,341 @@ export default function CustomizePage() {
   /* ── Fabrics ── */
   const renderFabrics = ()=>(
     <div>
-      <h2 className="step-heading">Choose Your Fabric</h2>
-      <p style={{color:'var(--text-2)',fontSize:'.88rem',marginBottom:24,lineHeight:1.6}}>
-        All fabrics shown are garment-appropriate — incompatible fabrics are excluded. Price adjustments are shown relative to the base fabric.
-      </p>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom:20, flexWrap:'wrap', gap:12}}>
+        <div>
+          <h2 className="step-heading">Select Fabric Material ({fabrics.length} Fabrics Available)</h2>
+          <p style={{color:'var(--text-2)',fontSize:'.88rem',lineHeight:1.6}}>
+            Choose from our 23 artisanal fabrics. Click any swatch to select, or click the <strong style={{color:'var(--gold)'}}>🔍 Zoom & Video</strong> button to inspect high-resolution weave texture and drape motion in full screen.
+          </p>
+        </div>
+      </div>
+
       <div className="fabric-grid">
-        {fabrics.map((f:any)=>(
-          <div key={f.id} className={`fabric-card${fabric?.id===f.id?' sel':''}`} onClick={()=>setFabric(f)}>
-            <div className="fabric-swatch">
-              <img src={f.swatchUrl||`/image/${slug==='blazer'?'BLAZER':slug==='pant'?'pant':'shirt'}.jpg`} alt={f.name}
-                onError={(e)=>{(e.target as HTMLImageElement).src='/image/shirt.jpg';}}/>
-            </div>
-            <div className="fabric-info">
-              <div className="fabric-name">{f.name}</div>
-              <div className="fabric-desc">{f.description||f.desc}</div>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:7}}>
-                <div className="fabric-price">{(f.priceDelta||0)===0?'Included':`+₹${(f.priceDelta||0).toLocaleString('en-IN')}`}</div>
-                {f.formality && <span style={{fontSize:'.67rem',color:'var(--text-3)',fontStyle:'italic'}}>{f.formality}</span>}
+        {fabrics.map((f:any)=>{
+          const isSel = fabric?.id === f.id;
+          return (
+            <div
+              key={f.id}
+              className={`fabric-card${isSel ? ' sel' : ''}`}
+              onClick={()=>{
+                setFabric(f);
+                if (!getDetail('color')) setDetail('color', 'Pure White');
+                if (!getDetail('pattern')) setDetail('pattern', 'Solid / Plain');
+              }}
+              style={{position:'relative', cursor:'pointer'}}
+            >
+              <div className="fabric-swatch" style={{position:'relative', overflow:'hidden'}}>
+                <img
+                  src={f.swatchUrl || `/image/shirt.jpg`}
+                  alt={f.name}
+                  style={{transition:'transform 0.3s ease'}}
+                  onError={(e)=>{(e.target as HTMLImageElement).src='/image/shirt.jpg';}}
+                />
+                <button
+                  type="button"
+                  title="Inspect Texture & Drape Video"
+                  onClick={(e)=>{
+                    e.stopPropagation();
+                    setInspectFabric(f);
+                    setInspectTab('image');
+                  }}
+                  style={{
+                    position:'absolute',
+                    top:8,
+                    right:8,
+                    background:'rgba(10,12,18,0.78)',
+                    backdropFilter:'blur(4px)',
+                    border:'1px solid var(--border-g)',
+                    borderRadius:50,
+                    color:'var(--gold)',
+                    padding:'4px 10px',
+                    fontSize:'.7rem',
+                    display:'flex',
+                    alignItems:'center',
+                    gap:4,
+                    cursor:'pointer',
+                    zIndex:2,
+                  }}
+                >
+                  <FiZoomIn size={12}/> Zoom / Video
+                </button>
+              </div>
+
+              <div className="fabric-info">
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                  <div className="fabric-name">{f.name}</div>
+                  {isSel && <span style={{color:'var(--gold)', fontSize:'.75rem', fontWeight:700}}>✓ Selected</span>}
+                </div>
+                <div className="fabric-desc">{f.description || f.desc}</div>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:7}}>
+                  <div className="fabric-price">{(f.priceDelta||0)===0 ? 'Included' : `+₹${(f.priceDelta||0).toLocaleString('en-IN')}`}</div>
+                  {f.formality && <span style={{fontSize:'.67rem',color:'var(--text-3)',fontStyle:'italic'}}>{f.formality}</span>}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
+
+      {/* ── Fabric Selected Banner — Links to Step 2 Color & Pattern Selection ── */}
+      {fabric && (
+        <div style={{marginTop: 32, padding: '20px 24px', background: 'var(--gold-subtle)', border: '1px solid var(--border-g)', borderRadius: 'var(--r-md)', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:12}}>
+          <div>
+            <span style={{fontSize:'.7rem', textTransform:'uppercase', letterSpacing:'.12em', color:'var(--gold)', fontWeight:700}}>Fabric Selected</span>
+            <h3 style={{fontFamily:"'Playfair Display',serif", fontSize:'1.3rem', color:'var(--text)', margin:'2px 0'}}>
+              {fabric.name} — Ready for Color & Pattern Selection
+            </h3>
+            <p style={{color:'var(--text-2)', fontSize:'.82rem'}}>
+              Continue to Step 2 to explore all 28 curated color tones and 22 pattern types (Plain, Lined / Striped, Checks, and more).
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn btn-gold"
+            onClick={()=>setStep(2)}
+          >
+            Choose Color & Pattern <FiArrowRight/>
+          </button>
+        </div>
+      )}
+
+      {/* ── High-Res Zoom & Drape Video Inspection Lightbox Modal ── */}
+      {inspectFabric && (
+        <div
+          style={{
+            position:'fixed',
+            inset:0,
+            background:'rgba(5, 7, 12, 0.88)',
+            backdropFilter:'blur(10px)',
+            zIndex:99999,
+            display:'flex',
+            alignItems:'center',
+            justifyContent:'center',
+            padding:'20px',
+          }}
+          onClick={()=>setInspectFabric(null)}
+        >
+          <div
+            style={{
+              background:'var(--bg-card)',
+              border:'1px solid var(--border-g)',
+              borderRadius:'var(--r-lg)',
+              maxWidth:'820px',
+              width:'100%',
+              maxHeight:'92vh',
+              overflowY:'auto',
+              boxShadow:'0 30px 60px -12px rgba(0,0,0,0.85)',
+              position:'relative',
+              padding:'28px',
+            }}
+            onClick={(e)=>e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', borderBottom:'1px solid var(--border)', paddingBottom:16, marginBottom:20}}>
+              <div>
+                <span style={{fontSize:'.7rem', textTransform:'uppercase', letterSpacing:'.12em', color:'var(--gold)', fontWeight:700}}>Artisanal Fabric Inspection</span>
+                <h2 style={{fontFamily:"'Playfair Display',serif", fontSize:'1.8rem', color:'var(--text)', margin:'4px 0'}}>
+                  {inspectFabric.name}
+                </h2>
+                <p style={{color:'var(--text-2)', fontSize:'.85rem'}}>
+                  {inspectFabric.description || inspectFabric.desc}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={()=>setInspectFabric(null)}
+                style={{background:'none', border:'none', color:'var(--text-2)', cursor:'pointer', padding:6, borderRadius:50}}
+              >
+                <FiX size={24}/>
+              </button>
+            </div>
+
+            {/* View Switcher: Photo Zoom vs Video Drape */}
+            <div style={{display:'flex', gap:10, marginBottom:20}}>
+              <button
+                type="button"
+                onClick={()=>setInspectTab('image')}
+                style={{
+                  display:'flex',
+                  alignItems:'center',
+                  gap:8,
+                  padding:'10px 18px',
+                  borderRadius:'var(--r-sm)',
+                  border: inspectTab === 'image' ? '1px solid var(--gold)' : '1px solid var(--border)',
+                  background: inspectTab === 'image' ? 'var(--gold-subtle)' : 'var(--bg-el)',
+                  color: inspectTab === 'image' ? 'var(--gold)' : 'var(--text-2)',
+                  fontWeight: 600,
+                  fontSize: '.85rem',
+                  cursor:'pointer',
+                }}
+              >
+                <FiZoomIn size={16}/> High-Res Texture Zoom
+              </button>
+              <button
+                type="button"
+                onClick={()=>setInspectTab('video')}
+                style={{
+                  display:'flex',
+                  alignItems:'center',
+                  gap:8,
+                  padding:'10px 18px',
+                  borderRadius:'var(--r-sm)',
+                  border: inspectTab === 'video' ? '1px solid var(--gold)' : '1px solid var(--border)',
+                  background: inspectTab === 'video' ? 'var(--gold-subtle)' : 'var(--bg-el)',
+                  color: inspectTab === 'video' ? 'var(--gold)' : 'var(--text-2)',
+                  fontWeight: 600,
+                  fontSize: '.85rem',
+                  cursor:'pointer',
+                }}
+              >
+                <FiFilm size={16}/> Drape & Movement Video
+              </button>
+            </div>
+
+            {/* Tab 1: Image Zoom View */}
+            {inspectTab === 'image' && (
+              <div>
+                <div style={{borderRadius:'var(--r-md)', overflow:'hidden', border:'1px solid var(--border)', background:'#000', textAlign:'center', position:'relative'}}>
+                  <img
+                    src={inspectFabric.swatchUrl || '/image/shirt.jpg'}
+                    alt={inspectFabric.name}
+                    style={{width:'100%', maxHeight:'420px', objectFit:'cover', display:'block'}}
+                  />
+                  <div style={{position:'absolute', bottom:10, left:10, background:'rgba(0,0,0,0.65)', backdropFilter:'blur(4px)', padding:'4px 10px', borderRadius:4, fontSize:'.72rem', color:'var(--text-2)'}}>
+                    🔍 100% Macro High-Definition Texture View
+                  </div>
+                </div>
+
+                {/* Technical Specifications Grid */}
+                <div style={{marginTop:20, display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(170px, 1fr))', gap:12}}>
+                  <div style={{padding:12, background:'var(--bg-el)', borderRadius:'var(--r-sm)', border:'1px solid var(--border)'}}>
+                    <div style={{fontSize:'.68rem', color:'var(--text-3)', textTransform:'uppercase'}}>Weave Architecture</div>
+                    <div style={{fontSize:'.88rem', fontWeight:700, color:'var(--text)', marginTop:3}}>{inspectFabric.weave || 'Premium Woven'}</div>
+                  </div>
+                  <div style={{padding:12, background:'var(--bg-el)', borderRadius:'var(--r-sm)', border:'1px solid var(--border)'}}>
+                    <div style={{fontSize:'.68rem', color:'var(--text-3)', textTransform:'uppercase'}}>Fabric Weight</div>
+                    <div style={{fontSize:'.88rem', fontWeight:700, color:'var(--text)', marginTop:3}}>{inspectFabric.weight || '150 gsm'}</div>
+                  </div>
+                  <div style={{padding:12, background:'var(--bg-el)', borderRadius:'var(--r-sm)', border:'1px solid var(--border)'}}>
+                    <div style={{fontSize:'.68rem', color:'var(--text-3)', textTransform:'uppercase'}}>Formality Rating</div>
+                    <div style={{fontSize:'.88rem', fontWeight:700, color:'var(--gold)', marginTop:3}}>{inspectFabric.formality || 'High'}</div>
+                  </div>
+                  <div style={{padding:12, background:'var(--bg-el)', borderRadius:'var(--r-sm)', border:'1px solid var(--border)'}}>
+                    <div style={{fontSize:'.68rem', color:'var(--text-3)', textTransform:'uppercase'}}>Price Delta</div>
+                    <div style={{fontSize:'.88rem', fontWeight:700, color:'var(--text)', marginTop:3}}>
+                      {(inspectFabric.priceDelta||0)===0 ? 'Included' : `+₹${(inspectFabric.priceDelta||0).toLocaleString('en-IN')}`}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Tab 2: Video Player View */}
+            {inspectTab === 'video' && (
+              <div>
+                <div style={{borderRadius:'var(--r-md)', overflow:'hidden', border:'1px solid var(--border)', background:'#000', position:'relative'}}>
+                  <video
+                    controls
+                    autoPlay
+                    playsInline
+                    style={{width:'100%', maxHeight:'420px', display:'block', background:'#000'}}
+                    src={inspectFabric.videoUrl || `/video/fabrics/${inspectFabric.id}.mp4`}
+                    onError={(e) => {
+                      const vid = e.currentTarget;
+                      if (!vid.src.includes('promo.mp4')) {
+                        vid.src = '/video/promo.mp4';
+                        vid.play().catch(()=>{});
+                      }
+                    }}
+                  />
+                </div>
+                <div style={{marginTop:12, display:'flex', justifyContent:'space-between', alignItems:'center', background:'var(--gold-subtle)', padding:'10px 14px', borderRadius:'var(--r-sm)', border:'1px solid var(--border-g)'}}>
+                  <span style={{fontSize:'.78rem', color:'var(--gold)', display:'flex', alignItems:'center', gap:6}}>
+                    <FiFilm size={14}/> <strong>Drape & Movement Preview:</strong> Observe wrinkle resistance, hand feel, and natural light reflection.
+                  </span>
+                  <span style={{fontSize:'.7rem', color:'var(--text-3)'}}>Ready for custom video upload</span>
+                </div>
+              </div>
+            )}
+
+            {/* Modal Bottom Actions */}
+            <div style={{marginTop:24, display:'flex', justifyContent:'flex-end', gap:12}}>
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={()=>setInspectFabric(null)}
+              >
+                Close Preview
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={()=>{
+                  setFabric(inspectFabric);
+                  if (!getDetail('color')) setDetail('color', 'Pure White');
+                  if (!getDetail('pattern')) setDetail('pattern', 'Solid / Plain');
+                  setInspectFabric(null);
+                }}
+              >
+                <FiCheck size={16}/> Select {inspectFabric.name}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 
   /* ── Shirt detail steps ── */
-  const renderShirtCollars = ()=>(
+  const renderShirtCollarsAndCuffs = ()=>(
     <div>
       <h2 className="step-heading">Collar Style</h2>
       <p style={{color:'var(--text-2)',fontSize:'.88rem',marginBottom:20}}>
-        The collar defines the shirt's formality. Wing collars are black-tie/white-tie only and should be worn with a bow tie.
+        The collar establishes the neckline formality and stance. Options locked by the selected model are preserved for authentic silhouette styling.
       </p>
       {isLocked('collar') && <div style={{marginBottom:16}}><LockedOption label="Collar" value={details.collar||''}/></div>}
       <div className="style-opts-grid">
         {SHIRT_COLLARS.map(c=><OptionCard key={c.id} item={c} sel={getDetail('collar')===c.id} onSelect={()=>setDetail('collar',c.id)} locked={isLocked('collar')}/>)}
       </div>
-      <h2 className="step-heading" style={{marginTop:32}}>Cuff Style</h2>
-      <p style={{color:'var(--text-2)',fontSize:'.88rem',marginBottom:20}}>French/Double cuffs require cufflinks and represent the most formal option — ideal with a suit jacket.</p>
+
+      <h2 className="step-heading" style={{marginTop:36}}>Cuff Style</h2>
+      <p style={{color:'var(--text-2)',fontSize:'.88rem',marginBottom:20}}>
+        Select your wrist cuff construction. French cuffs require cufflinks, while barrel and snap cuffs offer everyday versatility.
+      </p>
+      {isLocked('cuff') && <div style={{marginBottom:16}}><LockedOption label="Cuff" value={details.cuff||''}/></div>}
       <div className="style-opts-grid">
-        {SHIRT_CUFFS.map(c=><OptionCard key={c.id} item={c} sel={getDetail('cuff')===c.id} onSelect={()=>setDetail('cuff',c.id)} locked={false}/>)}
+        {SHIRT_CUFFS.map(c=><OptionCard key={c.id} item={c} sel={getDetail('cuff')===c.id} onSelect={()=>setDetail('cuff',c.id)} locked={isLocked('cuff')}/>)}
       </div>
-      <h2 className="step-heading" style={{marginTop:32}}>Placket</h2>
+    </div>
+  );
+
+  const renderShirtSleevePocketPlacket = ()=>(
+    <div>
+      <h2 className="step-heading">Sleeve Length</h2>
+      <p style={{color:'var(--text-2)',fontSize:'.88rem',marginBottom:20}}>
+        Choose between full tailored wrist sleeves or relaxed short sleeves.
+      </p>
+      {isLocked('sleeve') && <div style={{marginBottom:16}}><LockedOption label="Sleeve" value={details.sleeve||''}/></div>}
       <div className="style-opts-grid">
-        {SHIRT_PLACKETS.map(c=><OptionCard key={c.id} item={c} sel={getDetail('placket')===c.id} onSelect={()=>setDetail('placket',c.id)} locked={false}/>)}
+        {SHIRT_SLEEVES.map(s=><OptionCard key={s.id} item={s} sel={getDetail('sleeve')===s.id} onSelect={()=>setDetail('sleeve',s.id)} locked={isLocked('sleeve')}/>)}
+      </div>
+
+      <h2 className="step-heading" style={{marginTop:36}}>Pocket Design</h2>
+      <p style={{color:'var(--text-2)',fontSize:'.88rem',marginBottom:20}}>
+        Select your pocket configuration. Formal dress shirts are classically seamless and pocketless.
+      </p>
+      {isLocked('pocket') && <div style={{marginBottom:16}}><LockedOption label="Pocket" value={details.pocket||''}/></div>}
+      <div className="style-opts-grid">
+        {SHIRT_POCKETS.map(p=><OptionCard key={p.id} item={p} sel={getDetail('pocket')===p.id} onSelect={()=>setDetail('pocket',p.id)} locked={isLocked('pocket')}/>)}
+      </div>
+
+      <h2 className="step-heading" style={{marginTop:36}}>Front Placket</h2>
+      <p style={{color:'var(--text-2)',fontSize:'.88rem',marginBottom:20}}>
+        Select front button placket styling down the center chest.
+      </p>
+      {isLocked('placket') && <div style={{marginBottom:16}}><LockedOption label="Placket" value={details.placket||''}/></div>}
+      <div className="style-opts-grid">
+        {SHIRT_PLACKETS.map(pl=><OptionCard key={pl.id} item={pl} sel={getDetail('placket')===pl.id} onSelect={()=>setDetail('placket',pl.id)} locked={isLocked('placket')}/>)}
       </div>
     </div>
   );
@@ -476,7 +1268,27 @@ export default function CustomizePage() {
           </div>
         </div>
       ) : (
-        <AIScan onDone={m=>{setMeasures(m);setSelSize('Custom AI Scan');}}/>
+        <div>
+          {measures?.chest && (
+            <div style={{padding:'12px 18px',background:'var(--gold-subtle)',border:'1px solid var(--border-g)',borderRadius:'var(--r-sm)',marginBottom:18,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <div style={{color:'var(--gold)',fontSize:'.88rem',fontWeight:700}}>
+                ✓ AI Scan Applied: Chest {measures.chest}&quot; · Waist {measures.waist}&quot; · Shoulder {measures.shoulder}&quot; · Inseam {measures.inseam}&quot;
+              </div>
+              <button className="btn btn-primary btn-sm" onClick={()=>setStep(s=>Math.min(s+1,steps.length-1))}>
+                Proceed to Review <FiArrowRight/>
+              </button>
+            </div>
+          )}
+          <AIScan
+            initialGender={gender || 'mens'}
+            initialGarment={slug || 'shirt'}
+            onDone={m=>{
+              setMeasures(m);
+              setSelSize('Custom AI Scan');
+              setStep(s=>Math.min(s+1,steps.length-1));
+            }}
+          />
+        </div>
       )}
     </div>
   );
@@ -487,7 +1299,10 @@ export default function CustomizePage() {
       ['Garment',  `Custom ${gender === 'mens' ? "Men's" : "Women's"} ${garmentLabel}`],
       ['Model',    model?.name||'—'],
       ['Fabric',   fabric?.name||'—'],
-      ['Size',     selSize||'—'],
+      ['Size / Fit', selSize||'—'],
+      ...(measures?.chest ? [
+        ['AI Measurements', `Chest: ${measures.chest}" · Waist: ${measures.waist}" · Shoulder: ${measures.shoulder}" · Inseam: ${measures.inseam}"`] as [string,string]
+      ] : []),
       ...(Object.entries(details).filter(([,v])=>!!v).map(([k,v]):[string,string]=>[k.charAt(0).toUpperCase()+k.slice(1), v])),
       ['Tailor',   tailor?.name||'No tailor selected'],
     ];
@@ -540,15 +1355,218 @@ export default function CustomizePage() {
     );
   };
 
+  /* ── Dedicated Step 2: COLOR SELECTION & TYPES / PATTERN SELECTION ── */
+  const renderColorAndPattern = () => {
+    const filteredColors = colorGroup === 'all'
+      ? ALL_COLOR_SELECTION
+      : ALL_COLOR_SELECTION.filter(c => c.group === colorGroup);
+
+    const filteredPatterns = patternType === 'all'
+      ? ALL_TYPE_PATTERNS
+      : ALL_TYPE_PATTERNS.filter(p => p.type === patternType);
+
+    const activeColor = getDetail('color') || 'Pure White';
+    const activePattern = getDetail('pattern') || 'Solid / Plain Smooth';
+
+    return (
+      <div>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:12, marginBottom:24, padding:'16px 20px', background:'var(--bg-el)', border:'1px solid var(--border-g)', borderRadius:'var(--r-md)'}}>
+          <div style={{display:'flex', alignItems:'center', gap:14}}>
+            <img
+              src={fabric?.swatchUrl || '/image/shirt.jpg'}
+              alt={fabric?.name || 'Fabric'}
+              style={{width:54, height:54, borderRadius:'var(--r-sm)', objectFit:'cover', border:'1px solid var(--gold)'}}
+            />
+            <div>
+              <span style={{fontSize:'.68rem', textTransform:'uppercase', letterSpacing:'.12em', color:'var(--gold)', fontWeight:700}}>Selected Fabric Material</span>
+              <h3 style={{fontFamily:"'Playfair Display',serif", fontSize:'1.35rem', color:'var(--text)', margin:'2px 0'}}>
+                {fabric?.name || 'Selected Fabric'}
+              </h3>
+              <div style={{fontSize:'.78rem', color:'var(--text-3)'}}>
+                Current Dye: <strong style={{color:'var(--gold)'}}>{activeColor}</strong> · Type: <strong style={{color:'var(--gold)'}}>{activePattern}</strong>
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn btn-outline btn-sm"
+            onClick={()=>setStep(1)}
+          >
+            Change Fabric
+          </button>
+        </div>
+
+        {/* ── 1. COLOR SELECTION ── */}
+        <div style={{marginBottom:40, padding:24, background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--r-md)'}}>
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:10, marginBottom:16}}>
+            <div>
+              <div style={{display:'flex', alignItems:'center', gap:8}}>
+                <FiDroplet style={{color:'var(--gold)'}} size={18}/>
+                <h2 className="step-heading" style={{margin:0, fontSize:'1.3rem'}}>Color Selection ({ALL_COLOR_SELECTION.length} Curated Hues)</h2>
+              </div>
+              <p style={{color:'var(--text-2)', fontSize:'.85rem', marginTop:4}}>
+                Select from our heritage dyework shades. Active Color: <strong style={{color:'var(--gold)'}}>{activeColor}</strong>
+              </p>
+            </div>
+
+            {/* Color Filter Tabs */}
+            <div style={{display:'flex', flexWrap:'wrap', gap:6}}>
+              {[
+                { id: 'all', label: 'All Colors' },
+                { id: 'classic', label: 'Classic & Monochromes' },
+                { id: 'blues', label: 'Blues & Navies' },
+                { id: 'earth', label: 'Earth & Greens' },
+                { id: 'warm', label: 'Warm & Reds' },
+                { id: 'pastels', label: 'Pastels' },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={()=>setColorGroup(tab.id)}
+                  style={{
+                    padding:'5px 12px',
+                    borderRadius:50,
+                    border: colorGroup === tab.id ? '1px solid var(--gold)' : '1px solid var(--border)',
+                    background: colorGroup === tab.id ? 'var(--gold-subtle)' : 'var(--bg-el)',
+                    color: colorGroup === tab.id ? 'var(--gold)' : 'var(--text-3)',
+                    fontSize:'.75rem',
+                    cursor:'pointer',
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(190px, 1fr))', gap:10}}>
+            {filteredColors.map(c => {
+              const isSel = activeColor === c.name;
+              return (
+                <div
+                  key={c.id}
+                  onClick={()=>setDetail('color', c.name)}
+                  style={{
+                    display:'flex',
+                    alignItems:'center',
+                    gap:12,
+                    padding:'10px 14px',
+                    borderRadius:'var(--r-sm)',
+                    border: isSel ? '2px solid var(--gold)' : '1px solid var(--border)',
+                    background: isSel ? 'var(--gold-subtle)' : 'var(--bg-el)',
+                    cursor:'pointer',
+                    transition:'all 0.15s ease',
+                  }}
+                >
+                  <span style={{
+                    width:26,
+                    height:26,
+                    borderRadius:'50%',
+                    background:c.hex,
+                    display:'inline-block',
+                    flexShrink:0,
+                    border: c.border ? `1px solid ${c.border}` : '1px solid rgba(255,255,255,0.2)',
+                    boxShadow:'0 2px 5px rgba(0,0,0,0.35)',
+                  }}/>
+                  <div style={{overflow:'hidden'}}>
+                    <div style={{fontSize:'.82rem', fontWeight: isSel ? 700 : 600, color:'var(--text)', whiteSpace:'nowrap', textOverflow:'ellipsis', overflow:'hidden'}}>
+                      {c.name}
+                    </div>
+                    <div style={{fontSize:'.67rem', color:'var(--text-3)', whiteSpace:'nowrap', textOverflow:'ellipsis', overflow:'hidden'}}>
+                      {c.desc}
+                    </div>
+                  </div>
+                  {isSel && <FiCheck style={{marginLeft:'auto', color:'var(--gold)', flexShrink:0}} size={14}/>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── 2. TYPES / PATTERN SELECTION ── */}
+        <div style={{padding:24, background:'var(--bg-card)', border:'1px solid var(--border)', borderRadius:'var(--r-md)'}}>
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:10, marginBottom:16}}>
+            <div>
+              <div style={{display:'flex', alignItems:'center', gap:8}}>
+                <FiLayers style={{color:'var(--gold)'}} size={18}/>
+                <h2 className="step-heading" style={{margin:0, fontSize:'1.3rem'}}>Types & Pattern Selection ({ALL_TYPE_PATTERNS.length} Types Available)</h2>
+              </div>
+              <p style={{color:'var(--text-2)', fontSize:'.85rem', marginTop:4}}>
+                Choose your structural weave: Plain, Lined / Striped, Checks, or Geometric. Active: <strong style={{color:'var(--gold)'}}>{activePattern}</strong>
+              </p>
+            </div>
+
+            {/* Type Filter Tabs */}
+            <div style={{display:'flex', flexWrap:'wrap', gap:6}}>
+              {[
+                { id: 'all', label: 'All Types' },
+                { id: 'plain', label: 'Plain / Solid' },
+                { id: 'lined', label: 'Lined / Striped' },
+                { id: 'check', label: 'Checks & Plaids' },
+                { id: 'other', label: 'Micro & Geometric' },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={()=>setPatternType(tab.id)}
+                  style={{
+                    padding:'5px 12px',
+                    borderRadius:50,
+                    border: patternType === tab.id ? '1px solid var(--gold)' : '1px solid var(--border)',
+                    background: patternType === tab.id ? 'var(--gold-subtle)' : 'var(--bg-el)',
+                    color: patternType === tab.id ? 'var(--gold)' : 'var(--text-3)',
+                    fontSize:'.75rem',
+                    cursor:'pointer',
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="style-opts-grid">
+            {filteredPatterns.map(p => {
+              const isSel = activePattern === p.name;
+              return (
+                <div
+                  key={p.id}
+                  className={`style-opt-card${isSel ? ' sel' : ''}`}
+                  onClick={()=>setDetail('pattern', p.name)}
+                  style={{cursor:'pointer'}}
+                >
+                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8}}>
+                    <span style={{fontFamily:'monospace', fontSize:'1.2rem', color:'var(--gold)', letterSpacing:3}}>
+                      {p.icon}
+                    </span>
+                    {isSel && (
+                      <span style={{display:'inline-flex', alignItems:'center', gap:3, color:'var(--gold)', fontSize:'.72rem', fontWeight:700}}>
+                        <FiCheck size={12}/> Selected
+                      </span>
+                    )}
+                  </div>
+                  <div className="style-opt-name">{p.name}</div>
+                  <div className="style-opt-desc">{p.desc}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   /* ── Step router ── */
   const renderStep = ()=>{
     if (slug==='shirt') {
       switch(step){
         case 0: return renderModels();
         case 1: return renderFabrics();
-        case 2: return renderShirtCollars();
-        case 3: return renderSize();
-        case 4: return renderSummary();
+        case 2: return renderColorAndPattern();
+        case 3: return renderShirtCollarsAndCuffs();
+        case 4: return renderShirtSleevePocketPlacket();
+        case 5: return renderSize();
+        case 6: return renderSummary();
         default: return renderSummary();
       }
     }
@@ -556,9 +1574,10 @@ export default function CustomizePage() {
       switch(step){
         case 0: return renderModels();
         case 1: return renderFabrics();
-        case 2: return renderPantDetails();
-        case 3: return renderSize();
-        case 4: return renderSummary();
+        case 2: return renderColorAndPattern();
+        case 3: return renderPantDetails();
+        case 4: return renderSize();
+        case 5: return renderSummary();
         default: return renderSummary();
       }
     }
@@ -566,11 +1585,12 @@ export default function CustomizePage() {
     switch(step){
       case 0: return renderModels();
       case 1: return renderFabrics();
-      case 2: return renderBlazerLapelButtons();
-      case 3: return renderBlazerVentPockets();
-      case 4: return renderBlazerFitLining();
-      case 5: return renderSize();
-      case 6: return renderSummary();
+      case 2: return renderColorAndPattern();
+      case 3: return renderBlazerLapelButtons();
+      case 4: return renderBlazerVentPockets();
+      case 5: return renderBlazerFitLining();
+      case 6: return renderSize();
+      case 7: return renderSummary();
       default: return renderSummary();
     }
   };
@@ -660,8 +1680,17 @@ export default function CustomizePage() {
             ['Gender', gender === 'mens' ? "Men's" : "Women's"],
             model   && ['Model',   model.name],
             fabric  && ['Fabric',  fabric.name],
+            getDetail('color')   && ['Color',   getDetail('color')],
+            getDetail('pattern') && ['Pattern', getDetail('pattern')],
+            selSize && ['Size Fit', selSize],
+            measures?.chest && ['Chest', `${measures.chest}"`],
+            measures?.waist && ['Waist', `${measures.waist}"`],
+            measures?.shoulder && ['Shoulder', `${measures.shoulder}"`],
             getDetail('collar')  && ['Collar', getDetail('collar')],
             getDetail('cuff')    && ['Cuff',   getDetail('cuff')],
+            getDetail('sleeve')  && ['Sleeve', getDetail('sleeve')],
+            getDetail('pocket')  && ['Pocket', getDetail('pocket')],
+            getDetail('placket') && ['Placket', getDetail('placket')],
             getDetail('lapel')   && ['Lapel',  getDetail('lapel')],
             getDetail('vent')    && ['Vent',   getDetail('vent')],
             getDetail('front')   && ['Front',  getDetail('front')],

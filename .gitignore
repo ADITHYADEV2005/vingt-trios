@@ -5,3 +5,4 @@ dist
 *.log
 backend/dist
 backend/prisma/dev.db
+*.tsbuildinfo

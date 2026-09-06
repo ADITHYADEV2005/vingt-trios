@@ -22,6 +22,7 @@ export interface AuthUser {
   email: string;
   name: string;
   role: 'CUSTOMER' | 'TAILOR' | 'DESIGNER' | 'ADMIN';
+  adminRole?: string;
 }
 
 interface AppContextType {
