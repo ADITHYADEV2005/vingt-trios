@@ -507,32 +507,32 @@ const SHIRT_MODELS = [
 ];
 
 const SHIRT_COLLARS = [
-  { id:'spread',      name:'Spread Collar',       desc:'Versatile formal collar. Works with most tie knots.' },
+  { id:'spread',      name:'Spread Collar',       desc:'Versatile formal collar. Works with most tie knots.', image:'/collars/spread.jpg' },
+  { id:'cutaway',     name:'Cutaway Collar',      desc:'Extreme spread — points sweep noticeably outward toward the shoulders.', image:'/collars/cutaway.jpg' },
+  { id:'windsor',     name:'Windsor Collar',      desc:'Broad formal spread suited for a full Windsor knot.', image:'/collars/windsor.jpg' },
+  { id:'point',       name:'Point / Straight',    desc:'Classic narrow spread pointing downward. Traditional and universally appropriate.', image:'/collars/point.jpg' },
+  { id:'wing',        name:'Wing Collar',         desc:'Upright folded points reserved for black-tie & white-tie tuxedo shirts.', image:'/collars/wing.jpg' },
+  { id:'club',        name:'Club Collar',         desc:'Rounded corners. Elegant Edwardian heritage with distinct curved tips.', image:'/collars/club.jpg' },
+  { id:'band',        name:'Band Collar',         desc:'Raised collarless band around neckline. No folded collar points.', image:'/collars/band.jpg' },
   { id:'button-down', name:'Button-Down Collar',  desc:'Classic roll collar with buttons for casual & Oxford styles.' },
   { id:'camp',        name:'Camp Collar',         desc:'One-piece flat notch open collar for overshirts & bowling styles.' },
   { id:'western',     name:'Western Collar',      desc:'Pointed heritage collar built for rugged frontier & denim looks.' },
   { id:'cuban',       name:'Cuban Collar',        desc:'Retro notched open lapel collar for summer linen shirts.' },
   { id:'mandarin',    name:'Mandarin Collar',     desc:'Minimalist short upright standing collar for modern eastern silhouettes.' },
   { id:'utility',     name:'Utility Collar',      desc:'Heavy-duty reinforced collar built for tactical and field shirts.' },
-  { id:'wing',        name:'Wing Collar',         desc:'Folded points reserved for black-tie & white-tie tuxedo shirts.' },
-  { id:'band',        name:'Band Collar',         desc:'Collarless neckline band ideal for clean casual Henley wear.' },
-  { id:'point',       name:'Point / Straight',    desc:'Classic narrow spread. Traditional and universally appropriate.' },
-  { id:'cutaway',     name:'Cutaway Collar',      desc:'Extreme spread — ideal for wide Windsor knots.' },
-  { id:'windsor',     name:'Windsor Collar',      desc:'Wide spread named for the Duke of Windsor.' },
-  { id:'club',        name:'Club Collar',         desc:'Rounded corners. Elegant Edwardian heritage.' },
 ];
 
 const SHIRT_CUFFS = [
-  { id:'french',      name:'French / Double Cuff', desc:'Folded back, fastened with cufflinks for maximum formality.' },
-  { id:'barrel',      name:'Barrel Cuff',          desc:'Single layer, button closure. Everyday formal and casual standard.' },
-  { id:'rounded',     name:'Rounded Barrel',       desc:'Curved edge barrel cuff typical of classic Oxford shirts.' },
+  { id:'barrel',      name:'Barrel Cuff',          desc:'Single layer, button closure. Everyday formal and casual standard.', image:'/cuffs/barrel.jpg' },
+  { id:'french',      name:'French / Double Cuff', desc:'Folded back, fastened with cufflinks for maximum formality.', image:'/cuffs/french.jpg' },
+  { id:'convertible', name:'Convertible Cuff',     desc:'Dual-purpose cuff that works with either buttons or cufflinks.', image:'/cuffs/convertible.jpg' },
+  { id:'rounded',     name:'Rounded Barrel',       desc:'Curved edge barrel cuff with rounded corners.', image:'/cuffs/rounded.jpg' },
+  { id:'mitred',      name:'Mitred Barrel',        desc:'Angled corner barrel cuff with clean architectural lines.', image:'/cuffs/mitred.jpg' },
   { id:'adjustable',  name:'Adjustable Cuff',      desc:'Dual-button sizing cuff for overshirts and jacket hybrids.' },
   { id:'snap',        name:'Snap Fastener Cuff',   desc:'Pearlized heavy-duty snap fasteners for western and denim shirts.' },
   { id:'folded',      name:'Folded Resort Cuff',   desc:'Permanently rolled/folded short hem for breezy linen shirts.' },
   { id:'straight',    name:'Straight Cut Cuff',    desc:'Clean straight-hemmed short sleeve for bowling and Hawaiian shirts.' },
   { id:'button',      name:'Single Button Cuff',   desc:'Clean minimalist single-button closure for tunics and mandarins.' },
-  { id:'convertible', name:'Convertible Cuff',     desc:'Dual-purpose cuff that works with either buttons or cufflinks.' },
-  { id:'mitred',      name:'Mitred Barrel',        desc:'Angled corner barrel cuff with clean architectural lines.' },
 ];
 
 const SHIRT_SLEEVES = [
@@ -551,9 +551,9 @@ const SHIRT_POCKETS = [
 ];
 
 const SHIRT_PLACKETS = [
-  { id:'standard',    name:'Standard Placket',     desc:'Traditional button band. Appropriate for all formal contexts.' },
-  { id:'french-front',name:'French Front',         desc:'Hidden buttons, very clean flat front. Elevated formal appearance.' },
-  { id:'pleated-bib', name:'Pleated Bib Front',    desc:'Formal dress shirts only — black-tie and white-tie events.' },
+  { id:'standard',    name:'Standard Placket',     desc:'Traditional button band. Appropriate for all formal contexts.', image:'/plackets/standard.jpg' },
+  { id:'french-front',name:'French Front',         desc:'Hidden buttons, very clean flat front. Elevated formal appearance.', image:'/plackets/french-front.jpg' },
+  { id:'pleated-bib', name:'Pleated Bib Front',    desc:'Formal dress shirts only — black-tie and white-tie events.', image:'/plackets/pleated-bib.jpg' },
 ];
 
 /* ── PANT STYLES ── */
@@ -680,6 +680,11 @@ function OptionCard({ item, sel, onSelect, locked }: { item:any; sel:boolean; on
       onClick={locked ? undefined : onSelect}
       style={locked ? { opacity:.55, cursor:'not-allowed' } : {}}
     >
+      {item.image && (
+        <div className="style-opt-img-wrap">
+          <img src={item.image} alt={item.name} className="style-opt-img" loading="lazy" />
+        </div>
+      )}
       <div className="style-opt-name">{item.name}</div>
       {item.desc && <div className="style-opt-desc">{item.desc}</div>}
       {item.formality && <div style={{marginTop:5,fontSize:'.68rem',color:'var(--gold)',fontWeight:600,letterSpacing:'.06em'}}>{item.formality}</div>}
